@@ -38,7 +38,7 @@ export default function Deliveries() {
   const handleOpen = (d?: any) => {
     if (d) {
       setEditingId(d.id);
-      setForm({ deliveryNo: d.deliveryNo, date: format(new Date(d.date), 'yyyy-MM-dd'), driver: d.driver || "", status: d.status });
+      setForm({ deliveryNo: d.deliveryNo, date: d.date.split('T')[0], driver: d.driver || "", status: d.status });
     } else {
       setEditingId(null);
       setForm({ deliveryNo: "", date: format(new Date(), 'yyyy-MM-dd'), driver: "", status: "Pending" });
@@ -48,7 +48,7 @@ export default function Deliveries() {
 
   const handleSave = async () => {
     try {
-      const payload = { ...form, date: new Date(form.date).toISOString() };
+      const payload = { ...form };
       if (editingId) {
         await updateMut.mutateAsync({ id: editingId, data: payload });
         toast({ title: "Delivery updated" });
@@ -101,7 +101,7 @@ export default function Deliveries() {
                       {d.deliveryNo}
                     </span>
                     <h3 className="font-bold text-lg text-foreground">{d.driver || 'No Driver'}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{format(new Date(d.date), 'MMM d, yyyy')}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{d.date.split('T')[0]}</p>
                   </div>
                   <Badge variant={d.status === 'Delivered' ? 'default' : 'secondary'} className={d.status === 'Delivered' ? 'bg-green-100 text-green-800 hover:bg-green-200' : ''}>
                     {d.status}
@@ -175,7 +175,7 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
   const { delivery, customerGroups = [], productSummary = [], grandTotal = 0 } = data as any;
 
   const exportTxt = (mode: 'price'|'no-price') => {
-    let txt = `Delivery No: ${delivery.deliveryNo}\nDate: ${format(new Date(delivery.date), 'yyyy-MM-dd')}\n\n`;
+    let txt = `Delivery No: ${delivery.deliveryNo}\nDate: ${delivery.date.split('T')[0]}\n\n`;
     customerGroups.forEach((cg: any) => {
       txt += `Cus: ${cg.customerName}\n`;
       cg.invoices.forEach((inv: any) => {
@@ -187,7 +187,7 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
           }
         });
       });
-      if (mode === 'price') txt += `Total: ${cg.total}$\n`;
+      if (mode === 'price') txt += `Total: ${cg.customerTotal}$\n`;
       txt += '\n';
     });
     txt += `TOTAL ITEMS\n`;
@@ -250,7 +250,7 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
                 {showPrice && (
                   <div className="pt-4 mt-2 border-t border-border flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span className="text-primary">${cg.total.toFixed(2)}</span>
+                    <span className="text-primary">${(cg.customerTotal ?? 0).toFixed(2)}</span>
                   </div>
                 )}
               </div>

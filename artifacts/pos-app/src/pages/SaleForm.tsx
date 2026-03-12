@@ -27,7 +27,6 @@ export default function SaleForm() {
   const { data: existingInvoice, isLoading: loadingInv } = useGetInvoice(Number(id), { query: { enabled: isEdit } });
   const { data: allProducts = [] } = useGetProducts();
   const { data: deliveries = [] } = useGetDeliveries();
-  const activeDeliveries = deliveries.filter(d => d.status === 'Pending' || d.status === 'In Transit');
 
   // Form State
   const [customerName, setCustomerName] = useState("");
@@ -154,7 +153,7 @@ export default function SaleForm() {
                   <SelectTrigger className="h-11 rounded-xl bg-muted/30"><SelectValue placeholder="None" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {activeDeliveries.map(d => <SelectItem key={d.id} value={d.id.toString()}>{d.deliveryNo} ({d.driver || 'No Driver'})</SelectItem>)}
+                    {deliveries.map(d => <SelectItem key={d.id} value={d.id.toString()}>{d.deliveryNo} ({d.driver || 'No Driver'})</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
