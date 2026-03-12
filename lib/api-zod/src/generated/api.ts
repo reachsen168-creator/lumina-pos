@@ -274,6 +274,61 @@ export const GetLastSalePriceResponse = zod.object({
 });
 
 /**
+ * @summary List all customers
+ */
+export const ListCustomersQueryParams = zod.object({
+  search: zod.coerce.string().optional(),
+});
+
+export const ListCustomersResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  phone: zod.string().nullish(),
+  note: zod.string().nullish(),
+  createdDate: zod.string(),
+});
+export const ListCustomersResponse = zod.array(ListCustomersResponseItem);
+
+/**
+ * @summary Create a customer
+ */
+export const CreateCustomerBody = zod.object({
+  name: zod.string(),
+  phone: zod.string().nullish(),
+  note: zod.string().nullish(),
+  createdDate: zod.string(),
+});
+
+/**
+ * @summary Update a customer
+ */
+export const UpdateCustomerParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateCustomerBody = zod.object({
+  name: zod.string(),
+  phone: zod.string().nullish(),
+  note: zod.string().nullish(),
+  createdDate: zod.string(),
+});
+
+export const UpdateCustomerResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  phone: zod.string().nullish(),
+  note: zod.string().nullish(),
+  createdDate: zod.string(),
+});
+
+/**
+ * @summary Delete a customer
+ */
+export const DeleteCustomerParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary Get customer purchase history
  */
 export const GetCustomerHistoryQueryParams = zod.object({

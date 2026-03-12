@@ -9,6 +9,21 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface CustomerRecord {
+  id: number;
+  name: string;
+  phone?: string | null;
+  note?: string | null;
+  createdDate: string;
+}
+
+export interface CreateCustomerInput {
+  name: string;
+  phone?: string | null;
+  note?: string | null;
+  createdDate: string;
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -274,6 +289,10 @@ export type GetInvoicesParams = {
 export type GetLastSalePriceParams = {
   customerName: string;
   productId: number;
+};
+
+export type ListCustomersParams = {
+  search?: string;
 };
 
 export type GetCustomerHistoryParams = {

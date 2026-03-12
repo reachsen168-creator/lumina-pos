@@ -1,16 +1,75 @@
 import { Router } from "express";
-import { db, invoicesTable, invoiceItemsTable, productsTable } from "@workspace/db";
-import { eq, and, gte, lte, ilike, sql, desc } from "drizzle-orm";
+import { db, invoicesTable, invoiceItemsTable, productsTable, customersTable } from "@workspace/db";
+import { eq, and, gte, lte, ilike, desc, like } from "drizzle-orm";
 
 const router = Router();
 
+// ── Customer CRUD ────────────────────────────────────────────────────────────
+
+router.get("/", async (req, res) => {
+  const { search } = req.query as Record<string, string>;
+  const rows = await db
+    .select()
+    .from(customersTable)
+    .where(search ? ilike(customersTable.name, `%${search}%`) : undefined)
+    .orderBy(customersTable.name);
+  res.json(rows);
+});
+
+router.post("/", async (req, res) => {
+  const { name, phone, note, createdDate } = req.body;
+  if (!name || !createdDate) {
+    return res.status(400).json({ error: "name and createdDate are required" });
+  }
+  const [row] = await db
+    .insert(customersTable)
+    .values({ name: name.trim(), phone: phone || null, note: note || null, createdDate })
+    .returning();
+  res.status(201).json(row);
+});
+
+router.put("/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { name, phone, note, createdDate } = req.body;
+  if (!name || !createdDate) {
+    return res.status(400).json({ error: "name and createdDate are required" });
+  }
+  const [row] = await db
+    .update(customersTable)
+    .set({ name: name.trim(), phone: phone || null, note: note || null, createdDate })
+    .where(eq(customersTable.id, id))
+    .returning();
+  if (!row) return res.status(404).json({ error: "Customer not found" });
+  res.json(row);
+});
+
+router.delete("/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  await db.delete(customersTable).where(eq(customersTable.id, id));
+  res.status(204).end();
+});
+
+// ── Customer Names (for datalist hints) ──────────────────────────────────────
+
 router.get("/names", async (_req, res) => {
-  const result = await db
+  // Combine names from both customers table and invoices (for legacy names)
+  const fromCustomers = await db
+    .selectDistinct({ name: customersTable.name })
+    .from(customersTable)
+    .orderBy(customersTable.name);
+  const fromInvoices = await db
     .selectDistinct({ customerName: invoicesTable.customerName })
     .from(invoicesTable)
     .orderBy(invoicesTable.customerName);
-  res.json(result.map(r => r.customerName));
+
+  const allNames = new Set<string>([
+    ...fromCustomers.map(r => r.name),
+    ...fromInvoices.map(r => r.customerName),
+  ]);
+  res.json([...allNames].sort());
 });
+
+// ── Customer Purchase History ─────────────────────────────────────────────────
 
 router.get("/history", async (req, res) => {
   const { customerName, productName, dateFrom, dateTo } = req.query as Record<string, string>;
@@ -34,10 +93,6 @@ router.get("/history", async (req, res) => {
 
   const result = [];
   for (const inv of invoices) {
-    const itemConditions = [eq(invoiceItemsTable.invoiceId, inv.id)];
-    if (productName) {
-      // Filter via join
-    }
     const items = await db
       .select({
         id: invoiceItemsTable.id,
@@ -63,7 +118,6 @@ router.get("/history", async (req, res) => {
       isDamaged: false,
     }));
 
-    // Filter by product name if specified
     if (productName && !mappedItems.some(i => i.productName.toLowerCase().includes(productName.toLowerCase()))) {
       continue;
     }
