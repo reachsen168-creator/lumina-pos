@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { DateShortcuts } from "@/components/ui/date-shortcuts";
-import { Plus, Search, FileText, Copy, Trash2, Edit } from "lucide-react";
+import { Plus, Search, FileText, Copy, Trash2, Edit, Truck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
