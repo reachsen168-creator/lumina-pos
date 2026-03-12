@@ -1,22 +1,41 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: POS + Inventory + Delivery Management System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: categories
+    description: Product categories
+  - name: products
+    description: Product management
+  - name: invoices
+    description: Sales invoices
+  - name: customers
+    description: Customer purchase history
+  - name: deliveries
+    description: Delivery management
+  - name: damaged
+    description: Damaged items
+  - name: transfers
+    description: Invoice item transfers
+  - name: reports
+    description: Reports and summaries
+  - name: history
+    description: History logs
+  - name: backup
+    description: Backup and restore
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +43,725 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Categories ──────────────────────────────────────────────────────────────
+  /categories:
+    get:
+      operationId: getCategories
+      tags: [categories]
+      summary: List all categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      tags: [categories]
+      summary: Create a category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryInput"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+
+  /categories/{id}:
+    put:
+      operationId: updateCategory
+      tags: [categories]
+      summary: Update a category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryInput"
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+    delete:
+      operationId: deleteCategory
+      tags: [categories]
+      summary: Delete a category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Products ─────────────────────────────────────────────────────────────────
+  /products:
+    get:
+      operationId: getProducts
+      tags: [products]
+      summary: List products
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+    post:
+      operationId: createProduct
+      tags: [products]
+      summary: Create a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductInput"
+      responses:
+        "201":
+          description: Created product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      summary: Get a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+    put:
+      operationId: updateProduct
+      tags: [products]
+      summary: Update a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductInput"
+      responses:
+        "200":
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+    delete:
+      operationId: deleteProduct
+      tags: [products]
+      summary: Delete a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Invoices ─────────────────────────────────────────────────────────────────
+  /invoices:
+    get:
+      operationId: getInvoices
+      tags: [invoices]
+      summary: List invoices
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+        - name: deliveryId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Create an invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvoiceInput"
+      responses:
+        "201":
+          description: Created invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get invoice with items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice with items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWithItems"
+    put:
+      operationId: updateInvoice
+      tags: [invoices]
+      summary: Update an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvoiceInput"
+      responses:
+        "200":
+          description: Updated invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+    delete:
+      operationId: deleteInvoice
+      tags: [invoices]
+      summary: Delete an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /invoices/{id}/duplicate:
+    post:
+      operationId: duplicateInvoice
+      tags: [invoices]
+      summary: Duplicate an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Duplicated invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWithItems"
+
+  /invoices/last-price:
+    get:
+      operationId: getLastSalePrice
+      tags: [invoices]
+      summary: Get last sale price for a product+customer pair
+      parameters:
+        - name: customerName
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: productId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Last sale info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LastSaleInfo"
+
+  # ── Customer Purchase History ──────────────────────────────────────────────
+  /customers/history:
+    get:
+      operationId: getCustomerHistory
+      tags: [customers]
+      summary: Get customer purchase history
+      parameters:
+        - name: customerName
+          in: query
+          schema:
+            type: string
+        - name: productName
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Customer purchase history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomerHistoryEntry"
+
+  /customers/names:
+    get:
+      operationId: getCustomerNames
+      tags: [customers]
+      summary: Get distinct customer names
+      responses:
+        "200":
+          description: List of customer names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  # ── Deliveries ────────────────────────────────────────────────────────────
+  /deliveries:
+    get:
+      operationId: getDeliveries
+      tags: [deliveries]
+      summary: List deliveries
+      responses:
+        "200":
+          description: List of deliveries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Delivery"
+    post:
+      operationId: createDelivery
+      tags: [deliveries]
+      summary: Create a delivery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDeliveryInput"
+      responses:
+        "201":
+          description: Created delivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Delivery"
+
+  /deliveries/{id}:
+    put:
+      operationId: updateDelivery
+      tags: [deliveries]
+      summary: Update a delivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDeliveryInput"
+      responses:
+        "200":
+          description: Updated delivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Delivery"
+    delete:
+      operationId: deleteDelivery
+      tags: [deliveries]
+      summary: Delete a delivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /deliveries/{id}/detail:
+    get:
+      operationId: getDeliveryDetail
+      tags: [deliveries]
+      summary: Get delivery with invoices grouped by customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Delivery detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryDetail"
+
+  # ── Damaged Items ─────────────────────────────────────────────────────────
+  /damaged:
+    get:
+      operationId: getDamagedItems
+      tags: [damaged]
+      summary: List damaged items
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of damaged items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DamagedItem"
+    post:
+      operationId: createDamagedItem
+      tags: [damaged]
+      summary: Record a damaged item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDamagedItemInput"
+      responses:
+        "201":
+          description: Created damaged item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DamagedItem"
+
+  /damaged/{id}:
+    put:
+      operationId: updateDamagedItem
+      tags: [damaged]
+      summary: Update a damaged item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDamagedItemInput"
+      responses:
+        "200":
+          description: Updated damaged item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DamagedItem"
+    delete:
+      operationId: deleteDamagedItem
+      tags: [damaged]
+      summary: Delete a damaged item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /damaged/check/{productId}:
+    get:
+      operationId: checkProductDamaged
+      tags: [damaged]
+      summary: Check if a product has been damaged
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Damage check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DamageCheckResult"
+
+  # ── Transfers ─────────────────────────────────────────────────────────────
+  /transfers:
+    get:
+      operationId: getTransfers
+      tags: [transfers]
+      summary: List transfer history
+      parameters:
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of transfers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transfer"
+    post:
+      operationId: createTransfer
+      tags: [transfers]
+      summary: Transfer items between invoices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransferInput"
+      responses:
+        "201":
+          description: Transfer result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransferResult"
+
+  # ── Reports ───────────────────────────────────────────────────────────────
+  /reports/dashboard:
+    get:
+      operationId: getDashboard
+      tags: [reports]
+      summary: Get dashboard summary for a date
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /reports/sales:
+    get:
+      operationId: getSalesReport
+      tags: [reports]
+      summary: Get sales report
+      parameters:
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sales report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesReport"
+
+  # ── History Logs ──────────────────────────────────────────────────────────
+  /history:
+    get:
+      operationId: getHistoryLogs
+      tags: [history]
+      summary: Get history logs
+      parameters:
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: entity
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: History logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HistoryLog"
+
+  # ── Backup & Restore ──────────────────────────────────────────────────────
+  /backup/export:
+    get:
+      operationId: exportBackup
+      tags: [backup]
+      summary: Export full database backup as JSON
+      responses:
+        "200":
+          description: Backup data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupData"
+
+  /backup/import:
+    post:
+      operationId: importBackup
+      tags: [backup]
+      summary: Import and restore from backup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackupData"
+      responses:
+        "200":
+          description: Restore result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreResult"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +769,505 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required: [id, name]
+
+    CreateCategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+      required: [name]
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        categoryId:
+          type: integer
+          nullable: true
+        categoryName:
+          type: string
+          nullable: true
+        basePrice:
+          type: number
+        trackStock:
+          type: boolean
+        stockQty:
+          type: integer
+        createdDate:
+          type: string
+      required: [id, name, basePrice, trackStock, stockQty, createdDate]
+
+    CreateProductInput:
+      type: object
+      properties:
+        name:
+          type: string
+        categoryId:
+          type: integer
+          nullable: true
+        basePrice:
+          type: number
+        trackStock:
+          type: boolean
+        stockQty:
+          type: integer
+        createdDate:
+          type: string
+      required: [name, basePrice, trackStock, stockQty]
+
+    InvoiceItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        invoiceId:
+          type: integer
+        productId:
+          type: integer
+        productName:
+          type: string
+        qty:
+          type: number
+        price:
+          type: number
+        subtotal:
+          type: number
+        isDamaged:
+          type: boolean
+      required: [id, invoiceId, productId, productName, qty, price, subtotal, isDamaged]
+
+    InvoiceItemInput:
+      type: object
+      properties:
+        productId:
+          type: integer
+        qty:
+          type: number
+        price:
+          type: number
+      required: [productId, qty, price]
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+        invoiceNo:
+          type: string
+        customerName:
+          type: string
+        date:
+          type: string
+        total:
+          type: number
+        deliveryId:
+          type: integer
+          nullable: true
+        deliveryNo:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+      required: [id, invoiceNo, customerName, date, total]
+
+    InvoiceWithItems:
+      allOf:
+        - $ref: "#/components/schemas/Invoice"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/InvoiceItem"
+          required: [items]
+
+    CreateInvoiceInput:
+      type: object
+      properties:
+        customerName:
+          type: string
+        date:
+          type: string
+        deliveryId:
+          type: integer
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceItemInput"
+      required: [customerName, date, items]
+
+    LastSaleInfo:
+      type: object
+      properties:
+        price:
+          type: number
+        date:
+          type: string
+          nullable: true
+        hasHistory:
+          type: boolean
+      required: [price, hasHistory]
+
+    CustomerHistoryEntry:
+      type: object
+      properties:
+        customerName:
+          type: string
+        invoiceNo:
+          type: string
+        invoiceId:
+          type: integer
+        date:
+          type: string
+        total:
+          type: number
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceItem"
+      required: [customerName, invoiceNo, invoiceId, date, total, items]
+
+    Delivery:
+      type: object
+      properties:
+        id:
+          type: integer
+        deliveryNo:
+          type: string
+        date:
+          type: string
+        driver:
+          type: string
+          nullable: true
+        status:
+          type: string
+      required: [id, deliveryNo, date, status]
+
+    CreateDeliveryInput:
+      type: object
+      properties:
+        deliveryNo:
+          type: string
+        date:
+          type: string
+        driver:
+          type: string
+          nullable: true
+        status:
+          type: string
+      required: [deliveryNo, date, status]
+
+    DeliveryCustomerGroup:
+      type: object
+      properties:
+        customerName:
+          type: string
+        invoices:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceWithItems"
+        customerTotal:
+          type: number
+      required: [customerName, invoices, customerTotal]
+
+    ProductSummary:
+      type: object
+      properties:
+        productId:
+          type: integer
+        productName:
+          type: string
+        totalQty:
+          type: number
+      required: [productId, productName, totalQty]
+
+    DeliveryDetail:
+      type: object
+      properties:
+        delivery:
+          $ref: "#/components/schemas/Delivery"
+        customerGroups:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveryCustomerGroup"
+        productSummary:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductSummary"
+        grandTotal:
+          type: number
+      required: [delivery, customerGroups, productSummary, grandTotal]
+
+    DamagedItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        productName:
+          type: string
+        qty:
+          type: integer
+        invoiceId:
+          type: integer
+          nullable: true
+        invoiceNo:
+          type: string
+          nullable: true
+        customerName:
+          type: string
+          nullable: true
+        damageReason:
+          type: string
+          nullable: true
+        date:
+          type: string
+        status:
+          type: string
+      required: [id, productId, productName, qty, date, status]
+
+    CreateDamagedItemInput:
+      type: object
+      properties:
+        productId:
+          type: integer
+        qty:
+          type: integer
+        invoiceId:
+          type: integer
+          nullable: true
+        customerName:
+          type: string
+          nullable: true
+        damageReason:
+          type: string
+          nullable: true
+        date:
+          type: string
+        status:
+          type: string
+      required: [productId, qty, date, status]
+
+    UpdateDamagedItemInput:
+      type: object
+      properties:
+        qty:
+          type: integer
+        damageReason:
+          type: string
+          nullable: true
+        date:
+          type: string
+        status:
+          type: string
+      required: [qty, date, status]
+
+    DamageCheckResult:
+      type: object
+      properties:
+        productId:
+          type: integer
+        hasDamageHistory:
+          type: boolean
+        damageCount:
+          type: integer
+      required: [productId, hasDamageHistory, damageCount]
+
+    Transfer:
+      type: object
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        productName:
+          type: string
+        qty:
+          type: number
+        fromInvoiceId:
+          type: integer
+        fromInvoiceNo:
+          type: string
+        fromCustomer:
+          type: string
+        toInvoiceId:
+          type: integer
+        toInvoiceNo:
+          type: string
+        toCustomer:
+          type: string
+        date:
+          type: string
+        note:
+          type: string
+          nullable: true
+      required: [id, productId, productName, qty, fromInvoiceId, fromInvoiceNo, fromCustomer, toInvoiceId, toInvoiceNo, toCustomer, date]
+
+    CreateTransferInput:
+      type: object
+      properties:
+        fromInvoiceId:
+          type: integer
+        toInvoiceId:
+          type: integer
+          nullable: true
+        toCustomerName:
+          type: string
+          nullable: true
+        productId:
+          type: integer
+        qty:
+          type: number
+        note:
+          type: string
+          nullable: true
+      required: [fromInvoiceId, productId, qty]
+
+    TransferResult:
+      type: object
+      properties:
+        transfer:
+          $ref: "#/components/schemas/Transfer"
+        updatedFromInvoice:
+          $ref: "#/components/schemas/InvoiceWithItems"
+        newOrUpdatedToInvoice:
+          $ref: "#/components/schemas/InvoiceWithItems"
+      required: [transfer, updatedFromInvoice, newOrUpdatedToInvoice]
+
+    DashboardSummary:
+      type: object
+      properties:
+        date:
+          type: string
+        totalSales:
+          type: number
+        invoiceCount:
+          type: integer
+        productsSold:
+          type: number
+        topProducts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductSummary"
+        recentInvoices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        lowStockProducts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+      required: [date, totalSales, invoiceCount, productsSold, topProducts, recentInvoices, lowStockProducts]
+
+    SalesReportItem:
+      type: object
+      properties:
+        date:
+          type: string
+        totalSales:
+          type: number
+        invoiceCount:
+          type: integer
+      required: [date, totalSales, invoiceCount]
+
+    SalesReport:
+      type: object
+      properties:
+        dateFrom:
+          type: string
+        dateTo:
+          type: string
+        totalSales:
+          type: number
+        totalInvoices:
+          type: integer
+        byDate:
+          type: array
+          items:
+            $ref: "#/components/schemas/SalesReportItem"
+        topProducts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductSummary"
+      required: [dateFrom, dateTo, totalSales, totalInvoices, byDate, topProducts]
+
+    HistoryLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+        entity:
+          type: string
+        entityId:
+          type: integer
+          nullable: true
+        description:
+          type: string
+        date:
+          type: string
+      required: [id, action, entity, description, date]
+
+    BackupData:
+      type: object
+      properties:
+        exportedAt:
+          type: string
+        categories:
+          type: array
+          items:
+            type: object
+        products:
+          type: array
+          items:
+            type: object
+        invoices:
+          type: array
+          items:
+            type: object
+        invoiceItems:
+          type: array
+          items:
+            type: object
+        deliveries:
+          type: array
+          items:
+            type: object
+        damagedItems:
+          type: array
+          items:
+            type: object
+        transfers:
+          type: array
+          items:
+            type: object
+      required: [exportedAt, categories, products, invoices, invoiceItems, deliveries, damagedItems, transfers]
+
+    RestoreResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required: [success, message]

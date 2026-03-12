@@ -1,0 +1,19 @@
+packages:
+  "recharts": "For dashboard and report charts"
+  "date-fns": "For date manipulation and formatting"
+  "framer-motion": "For page transitions and micro-interactions"
+  "react-hook-form": "For robust form handling"
+  "@hookform/resolvers": "For Zod validation integration"
+  "zod": "For schema validation"
+
+images:
+  - path: "artifacts/pos-app/public/images/auth-bg.png"
+    description: "Abstract warm minimal gradient background in soft terracotta, sand, and slate tones"
+    aspect_ratio: "16:9"
+  - path: "artifacts/pos-app/public/images/logo-mark.png"
+    description: "Minimalist geometric logo mark for a modern professional POS system, using warm slate and terracotta colors on transparent background"
+    aspect_ratio: "1:1"
+
+notes:
+  - Standard React Query hooks are imported from @workspace/api-client-react
+  - Forms use controlled local state for dynamic arrays (like POS line items) for simpler immediate reactivity

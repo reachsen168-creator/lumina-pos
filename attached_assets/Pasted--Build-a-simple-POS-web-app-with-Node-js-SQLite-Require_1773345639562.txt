@@ -1,0 +1,574 @@
+
+Build a simple POS web app with Node.js + SQLite.
+
+Requirements:
+--
+
+:::writing{variant="standard" id="10458"}
+POS + INVENTORY + DELIVERY MANAGEMENT SYSTEM
+FINAL COMPLETE REQUIREMENT
+
+--------------------------------------------------
+
+SYSTEM PURPOSE
+
+This system manages product inventory, sales invoices, customer purchase history, delivery trips, damaged products, invoice item transfers, and reports.
+
+The system must be simple, fast, mobile-friendly, and suitable for daily business use.
+
+All records must support search, edit, delete, and history tracking.
+
+Make the UI mobile friendly
+Use vertical layout
+Large touch buttons
+
+--------------------------------------------------
+
+MAIN SYSTEM MODULES
+
+Dashboard
+Products
+Categories
+Sales / Invoices
+Customer Purchase History
+Delivery Management
+Damaged Items
+Invoice Item Transfers
+Reports
+History Logs
+Backup & Restore
+
+--------------------------------------------------
+
+PRODUCT MANAGEMENT
+
+Each product must include:
+
+id
+name
+category_id
+base_price
+track_stock (true / false)
+stock_qty
+created_date
+
+Categories must include:
+
+id
+name
+
+Products page must support:
+
+Search box
+Category filter
+Date filter
+
+Actions:
+
+Add product
+Edit product
+Delete product
+
+Deleting must require confirmation popup.
+
+--------------------------------------------------
+
+SALES / INVOICE SYSTEM
+
+Invoice fields:
+
+id
+customer_name
+date
+total
+delivery_id
+note
+
+Invoice item fields:
+
+id
+invoice_id
+product_id
+qty
+price
+subtotal
+
+Stock behavior:
+
+If track_stock = true
+Stock must decrease when invoice is saved.
+
+--------------------------------------------------
+
+AUTO LAST SALE PRICE
+
+When selecting a product for a customer:
+
+If the same customer previously bought the same product,
+the system must automatically use the last sale price.
+
+If no previous sale exists,
+use the base price.
+
+The system must also show:
+
+Last sale to customer
+Price
+Date
+
+User can still manually edit the price.
+
+--------------------------------------------------
+
+QUICK PRODUCT HISTORY FROM SALE PAGE
+
+Inside the sale page users must be able to quickly view purchase history of the selected product for that customer.
+
+Example:
+
+Customer: Reach
+
+2026-03-01
+Beer = 1 x 3$
+
+2026-03-05
+Beer = 2 x 3.5$
+
+--------------------------------------------------
+
+CUSTOMER PURCHASE HISTORY
+
+Users must be able to search history by:
+
+Customer name
+Product name
+Date range
+
+Example display:
+
+Customer: Reach
+
+--------------------------------
+
+Invoice: INV-001
+Date: 2026-03-01
+
+Beer = 1 x 3$
+
+Total = 3$
+
+--------------------------------
+
+Invoice: INV-005
+Date: 2026-03-05
+
+Beer = 2 x 3.5$
+Orange = 3 x 2$
+
+Total = 13$
+
+--------------------------------------------------
+
+DELIVERY MANAGEMENT
+
+Delivery fields:
+
+id
+delivery_no
+date
+driver
+status
+
+Example delivery numbers:
+
+DL-001
+DL-002
+
+Invoices must include delivery_id.
+
+Delivery page must include dropdown:
+
+Delivery No : [DL-001 ▼]
+
+Selecting a delivery must show all invoices assigned to that delivery.
+
+--------------------------------------------------
+
+DELIVERY CUSTOMER VIEW
+
+Invoices must be grouped by customer.
+
+Example:
+
+Delivery No: DL-001
+Date: 2026-03-13
+
+Cus: Reach
+
+Beer = 1 x 3$ = 3$
+Orange = 3 x 2$ = 6$
+
+Total = 9$
+
+Cus: Dara
+
+Beer = 2 x 3$ = 6$
+
+Total = 6$
+
+--------------------------------------------------
+
+SHOW / HIDE PRICE
+
+Delivery page must allow toggling:
+
+Show Price
+Hide Price
+
+Example hide mode:
+
+Cus: Reach
+
+Beer = 1
+Orange = 3
+
+--------------------------------------------------
+
+DELIVERY TOTAL ITEM SUMMARY
+
+At the bottom of delivery page display total quantity of each product.
+
+Example:
+
+TOTAL ITEMS
+
+Beer = 3
+Orange = 3
+
+If the same product appears in multiple customers, quantities must be summed.
+
+--------------------------------------------------
+
+DELIVERY EXPORT
+
+Users must be able to export delivery list as TXT.
+
+Export must include:
+
+Delivery No
+Date
+
+Export modes:
+
+With Price
+Without Price
+
+--------------------------------------------------
+
+DAMAGED ITEMS MANAGEMENT
+
+The system must allow recording damaged items.
+
+Fields:
+
+id
+product_id
+qty
+invoice_id
+customer_name
+damage_reason
+date
+status
+
+Status:
+
+Damaged
+Repaired
+Sold Again
+
+Damaged items must be separated from normal stock.
+
+If a damaged item is sold again, system must display warning:
+
+"This item was previously damaged."
+
+Invoice must include note that the item was previously damaged.
+
+--------------------------------------------------
+
+INVOICE ITEM TRANSFER
+
+Users must be able to transfer items from one invoice to another.
+
+Example:
+
+Original invoice:
+
+INV-001
+Reach
+
+Beer = 10
+
+Transfer 4 Beer to another customer.
+
+Result:
+
+INV-001
+
+Beer = 6
+
+New invoice:
+
+INV-020
+Dara
+
+Beer = 4
+
+IMPORTANT RULE:
+
+Stock must NOT change during invoice transfer.
+
+--------------------------------------------------
+
+TRANSFER HISTORY
+
+Fields:
+
+id
+product_id
+qty
+from_invoice_id
+from_customer
+to_invoice_id
+to_customer
+date
+note
+
+Example:
+
+Date | Product | Qty | From | To
+
+2026-03-13 | Beer | 4 | Reach | Dara
+
+--------------------------------------------------
+
+DATE INPUT SYSTEM
+
+All date fields must support:
+
+Calendar dropdown
+Manual typing
+
+Example:
+
+Date: [2026-03-13 ▼]
+
+Accepted format:
+
+YYYY-MM-DD
+
+Invalid dates must show error.
+
+--------------------------------------------------
+
+QUICK DATE SHORTCUTS
+
+Pages with date filters must include:
+
+Today
+Yesterday
+This Week
+This Month
+
+Clicking these automatically sets date range.
+
+--------------------------------------------------
+
+QUICK PRODUCT SEARCH
+
+Sale page must include instant product search.
+
+Example:
+
+Search Product: beer
+
+Results:
+
+Beer
+Beer Can
+Beer Bottle
+
+Press ENTER to add product.
+
+--------------------------------------------------
+
+QUICK ADD PRODUCT BUTTON
+
+Sale page must include button:
+
++ Add Product
+
+Tap → search → select → product added to invoice.
+
+--------------------------------------------------
+
+QUICK QUANTITY BUTTONS
+
+Each product row must include quantity buttons:
+
+[-] Quantity [+]
+
+Example:
+
+Product: Beer
+
+[-] 1 [+]
+
++ increases quantity
+- decreases quantity
+
+Users can also manually type quantity.
+
+If quantity becomes 0 the item can be removed automatically.
+
+--------------------------------------------------
+
+LOW STOCK WARNING
+
+If stock ≤ 5 system must display warning.
+
+Example:
+
+Low Stock Warning
+
+Beer remaining stock = 4
+
+Show warning on:
+
+Products page
+Sale page
+
+--------------------------------------------------
+
+DUPLICATE INVOICE
+
+Users must be able to duplicate invoices.
+
+Example:
+
+Invoice INV-001
+
+Beer = 3
+Orange = 2
+
+Click Duplicate → create new invoice with same items.
+
+--------------------------------------------------
+
+DELIVERY STATUS
+
+Delivery must include status:
+
+Pending
+Delivered
+
+--------------------------------------------------
+
+DASHBOARD SUMMARY
+
+Dashboard must display daily summary.
+
+Example:
+
+Date: 2026-03-13
+
+Total Sales: 250$
+Invoices Today: 12
+Products Sold: 45
+
+--------------------------------------------------
+
+EDIT AND DELETE RULE
+
+All records must support:
+
+Edit
+Delete
+
+Deleting must require confirmation popup.
+
+--------------------------------------------------
+
+HISTORY LOGS
+
+System must record actions:
+
+CREATE
+EDIT
+DELETE
+
+Fields:
+
+id
+action_type
+table_name
+record_id
+description
+date
+
+--------------------------------------------------
+
+AUTO SAVE SYSTEM
+
+All changes must automatically save immediately.
+
+--------------------------------------------------
+
+BACKUP AND RESTORE
+
+System must allow:
+
+Backup Now
+Restore Backup
+
+Example backup file:
+
+backup_2026-03-13.db
+
+Restore must require confirmation.
+
+--------------------------------------------------
+
+MOBILE FRIENDLY INTERFACE
+
+The system must work well on mobile phones with vertical screen orientation.
+
+Pages must scroll vertically.
+
+Buttons must be large and touch-friendly.
+
+Example mobile sales layout:
+
+Customer
+Date
+
+Product list
+
+Beer
+Qty [-] 1 [+]
+Price
+
+Orange
+Qty [-] 3 [+]
+Price
+
+Total
+
+Save Invoice
+
+-------------------------
+
+⸻
+
+END OF REQUIREMENT
+:::
