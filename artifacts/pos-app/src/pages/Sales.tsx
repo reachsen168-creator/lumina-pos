@@ -36,27 +36,14 @@ function fmt$(n: number) {
 }
 
 function buildTelegramText(inv: FullInvoice): string {
-  const dateStr = safeFormatDate(inv.createdAt ?? inv.date, "d MMM yyyy");
-  const timeStr = safeFormatDate(inv.createdAt ?? inv.date, "HH:mm");
+  const date     = safeFormatDate(inv.createdAt ?? inv.date, "d MMM yyyy HH:mm");
+  const customer = inv.customerName;
+  const items    = inv.items.map(i =>
+    `${i.productName} = ${i.qty} x $${Number(i.price).toFixed(2)} = $${Number(i.subtotal ?? Number(i.price) * Number(i.qty)).toFixed(2)}`
+  ).join("\n");
+  const total = Number(inv.total).toFixed(2);
 
-  let text = `Date: ${dateStr} ${timeStr}\n\n`;
-  text += `Cus name: ${inv.customerName}\n\n`;
-
-  for (const item of inv.items) {
-    const price    = Number(item.price);
-    const qty      = Number(item.qty);
-    const subtotal = Number(item.subtotal ?? price * qty);
-    const priceStr    = Number.isInteger(price)    ? `$${price}`    : `$${price.toFixed(2)}`;
-    const subtotalStr = Number.isInteger(subtotal) ? `$${subtotal}` : `$${subtotal.toFixed(2)}`;
-    text += `${item.productName}\n`;
-    text += `${qty} × ${priceStr} = ${subtotalStr}\n\n`;
-  }
-
-  const total = Number(inv.total);
-  const totalStr = Number.isInteger(total) ? `$${total}` : `$${total.toFixed(2)}`;
-  text += `Total: ${totalStr}`;
-
-  return text;
+  return `🧾 BILL\n\nDate: ${date}\nCustomer: ${customer}\n\n${items}\n\nTotal: $${total}`;
 }
 
 function buildText(inv: FullInvoice, showDelivery: boolean): string {
@@ -211,16 +198,12 @@ export default function Sales() {
   };
 
   const handleSendTelegram = async (id: number) => {
-    const username = (localStorage.getItem("lumina_telegram_username") ?? "").trim();
-    if (!username) {
-      toast({ title: "Go to Settings → Telegram Integration to set a group username", variant: "destructive" });
-      return;
-    }
+    const username = (localStorage.getItem("lumina_telegram_username") ?? "reach_delivery").trim() || "reach_delivery";
     try {
       const inv  = await fetchFull(id);
-      const text = buildTelegramText(inv);
-      const url  = `https://t.me/${username}?text=${encodeURIComponent(text)}`;
-      window.location.href = url;
+      const message = buildTelegramText(inv);
+      const telegramUrl = `https://t.me/${username}?text=${encodeURIComponent(message)}`;
+      window.location.href = telegramUrl;
     } catch {
       toast({ title: "Failed to prepare Telegram message", variant: "destructive" });
     }
