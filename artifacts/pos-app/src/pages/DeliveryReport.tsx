@@ -47,42 +47,43 @@ function today() { return format(new Date(), "yyyy-MM-dd"); }
 
 // ── Plain-text builder ────────────────────────────────────────────────────────
 
+function fmtAmt(n: number) {
+  return Number.isInteger(n) ? `${n}$` : `${n.toFixed(2)}$`;
+}
+
 function buildTripText(trip: DeliveryTrip): string {
-  const { delivery, customers, packageSummary, totalBills, grandTotal } = trip;
-  const line = "─".repeat(38);
+  const { delivery, customers, packageSummary } = trip;
 
   let dateStr = delivery.date;
   try { dateStr = format(new Date(delivery.date), "dd/MM/yyyy"); } catch {}
 
   const lines: string[] = [];
 
+  lines.push("DELIVERY REPORT");
+  lines.push("");
+  lines.push(`Date : ${dateStr}`);
   lines.push(`Delivery : ${delivery.deliveryNo}`);
-  lines.push(`Date     : ${dateStr}`);
-  if (delivery.driver) lines.push(`Driver   : ${delivery.driver}`);
-  lines.push(line);
+  if (delivery.driver) lines.push(`Driver : ${delivery.driver}`);
 
   for (const grp of customers) {
+    lines.push("");
     lines.push(`Customer : ${grp.customerName}`);
+    let customerTotal = 0;
     for (const inv of grp.invoices) {
       for (const it of inv.items) {
-        lines.push(`  ${it.productName} = ${it.qty} x ${fmt(it.price)}`);
+        const subtotal = it.qty * it.price;
+        customerTotal += subtotal;
+        lines.push(`${it.productName} = ${it.qty} x ${fmtAmt(it.price)} = ${fmtAmt(subtotal)}`);
       }
     }
-    lines.push("");
+    lines.push(`Total : ${fmtAmt(customerTotal)}`);
   }
 
   if (packageSummary.length > 0) {
-    lines.push(line);
-    lines.push("Package Summary");
-    for (const p of packageSummary) {
-      lines.push(`  ${p.qty} ${p.type}`);
-    }
     lines.push("");
+    lines.push("Total Package :");
+    lines.push(packageSummary.map(p => `${p.qty} ${p.type}`).join(" + "));
   }
-
-  lines.push(line);
-  lines.push(`Total Bills  : ${totalBills}`);
-  lines.push(`Total Amount : ${fmt(grandTotal)}`);
 
   return lines.join("\n");
 }
