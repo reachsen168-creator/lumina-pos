@@ -113,14 +113,12 @@ export default function Products() {
     reader.onload = (e) => {
       const original = new Image();
       original.onload = () => {
-        const maxW = 300;
-        const scale = original.width > maxW ? maxW / original.width : 1;
         const canvas = document.createElement("canvas");
-        canvas.width  = Math.round(original.width  * scale);
-        canvas.height = Math.round(original.height * scale);
+        canvas.width  = 120;
+        canvas.height = 120;
         const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(original, 0, 0, canvas.width, canvas.height);
-        setImage(canvas.toDataURL("image/jpeg", 0.6));
+        ctx.drawImage(original, 0, 0, 120, 120);
+        setImage(canvas.toDataURL("image/jpeg", 0.5));
       };
       original.src = e.target?.result as string;
     };
