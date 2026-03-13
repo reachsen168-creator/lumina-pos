@@ -207,19 +207,18 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
       });
       txt += `Grand Total: $${Number(grandTotal).toFixed(2)}\n`;
     } else {
+      let totalItems = 0;
       customerGroups.forEach((cg: any) => {
-        txt += `${cg.customerName}\n`;
         cg.invoices.forEach((inv: any) => {
+          txt += `Inv: ${inv.invoiceNo}\n\n`;
           inv.items.forEach((item: any) => {
-            txt += `${item.productName} x${item.qty}\n`;
+            totalItems += Number(item.qty);
+            txt += `${item.productName} = ${item.qty}\n`;
           });
+          txt += '\n';
         });
-        txt += '\n';
       });
-      txt += `TOTAL ITEMS\n`;
-      productSummary.forEach((ps: any) => {
-        txt += `${ps.productName} = ${ps.totalQty}\n`;
-      });
+      txt += `Total Items: ${totalItems}`;
     }
 
     return txt;
