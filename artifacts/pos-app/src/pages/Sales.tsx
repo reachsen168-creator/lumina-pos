@@ -215,7 +215,12 @@ export default function Sales() {
       const message = buildTelegramMessage(inv);
       const encoded = encodeURIComponent(message);
 
-      window.open(`tg://msg?text=${encoded}`);
+      const a = document.createElement("a");
+      a.href = `tg://msg?text=${encoded}`;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     } catch {
       toast({ title: "Failed to prepare Telegram message", variant: "destructive" });
     }
