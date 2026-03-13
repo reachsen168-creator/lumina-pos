@@ -1,4 +1,4 @@
-import { pgTable, serial, text, numeric, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, numeric, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { productsTable } from "./products";
@@ -10,6 +10,14 @@ export const transfersTable = pgTable("transfers", {
   qty: numeric("qty", { precision: 10, scale: 2 }).notNull(),
   fromInvoiceId: integer("from_invoice_id").notNull().references(() => invoicesTable.id),
   toInvoiceId: integer("to_invoice_id").notNull().references(() => invoicesTable.id),
+  fromInvoiceNo: text("from_invoice_no").notNull().default(""),
+  fromCustomerName: text("from_customer_name").notNull().default(""),
+  toInvoiceNo: text("to_invoice_no").notNull().default(""),
+  toCustomerName: text("to_customer_name").notNull().default(""),
+  itemName: text("item_name").notNull().default(""),
+  createdBy: text("created_by").notNull().default("Admin"),
+  isReversed: boolean("is_reversed").notNull().default(false),
+  reversedAt: timestamp("reversed_at"),
   date: text("date").notNull(),
   note: text("note"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
