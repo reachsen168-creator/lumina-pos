@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { db, invoicesTable, invoiceItemsTable, productsTable, deliveriesTable } from "@workspace/db";
-import { eq, and, gte, lte, ilike, sql, desc } from "drizzle-orm";
+import { eq, and, gte, lte, ilike, desc } from "drizzle-orm";
 import { logHistory } from "./history.js";
 
 const router = Router();
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function getInvoiceWithItems(id: number) {
   const [invoice] = await db
@@ -68,23 +70,52 @@ async function nextInvoiceNo() {
   return `INV-${String(num).padStart(3, "0")}`;
 }
 
+/** Decrease stock for each item in the list (only when trackStock = true). */
+async function decreaseStock(tx: typeof db, items: Array<{ productId: number; qty: number }>) {
+  for (const item of items) {
+    const [product] = await tx
+      .select({ trackStock: productsTable.trackStock, stockQty: productsTable.stockQty })
+      .from(productsTable)
+      .where(eq(productsTable.id, item.productId));
+
+    if (product?.trackStock) {
+      const newQty = Math.max(0, product.stockQty - parseFloat(String(item.qty)));
+      await tx
+        .update(productsTable)
+        .set({ stockQty: newQty })
+        .where(eq(productsTable.id, item.productId));
+    }
+  }
+}
+
+/** Restore (add back) stock for each item in the list (only when trackStock = true). */
+async function restoreStock(tx: typeof db, items: Array<{ productId: number; qty: string | number }>) {
+  for (const item of items) {
+    const [product] = await tx
+      .select({ trackStock: productsTable.trackStock, stockQty: productsTable.stockQty })
+      .from(productsTable)
+      .where(eq(productsTable.id, item.productId));
+
+    if (product?.trackStock) {
+      await tx
+        .update(productsTable)
+        .set({ stockQty: product.stockQty + parseFloat(String(item.qty)) })
+        .where(eq(productsTable.id, item.productId));
+    }
+  }
+}
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+
 router.get("/last-price", async (req, res) => {
   const { customerName, productId } = req.query as Record<string, string>;
   if (!customerName || !productId) return res.status(400).json({ error: "customerName and productId required" });
 
   const lastSale = await db
-    .select({
-      price: invoiceItemsTable.price,
-      date: invoicesTable.date,
-    })
+    .select({ price: invoiceItemsTable.price, date: invoicesTable.date })
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-    .where(
-      and(
-        eq(invoicesTable.customerName, customerName),
-        eq(invoiceItemsTable.productId, parseInt(productId))
-      )
-    )
+    .where(and(eq(invoicesTable.customerName, customerName), eq(invoiceItemsTable.productId, parseInt(productId))))
     .orderBy(desc(invoicesTable.date))
     .limit(1);
 
@@ -136,115 +167,118 @@ router.get("/:id", async (req, res) => {
   res.json(inv);
 });
 
+// ── CREATE ────────────────────────────────────────────────────────────────────
+
 router.post("/", async (req, res) => {
   const { customerName, date, deliveryId, note, items } = req.body;
-  if (!customerName || !date || !items?.length) return res.status(400).json({ error: "customerName, date, and items required" });
-
-  const invoiceNo = await nextInvoiceNo();
-
-  // Calculate total
-  const total = items.reduce((sum: number, item: any) => sum + item.qty * item.price, 0);
-
-  const [invoice] = await db.insert(invoicesTable).values({
-    invoiceNo,
-    customerName,
-    date,
-    total: String(total),
-    deliveryId: deliveryId || null,
-    note: note || null,
-  }).returning();
-
-  // Insert items and update stock
-  for (const item of items) {
-    const subtotal = item.qty * item.price;
-    await db.insert(invoiceItemsTable).values({
-      invoiceId: invoice.id,
-      productId: item.productId,
-      qty: String(item.qty),
-      price: String(item.price),
-      subtotal: String(subtotal),
-    });
-
-    // Decrease stock if tracked
-    const [product] = await db.select({ trackStock: productsTable.trackStock, stockQty: productsTable.stockQty }).from(productsTable).where(eq(productsTable.id, item.productId));
-    if (product?.trackStock) {
-      await db.update(productsTable).set({ stockQty: Math.max(0, product.stockQty - Math.round(item.qty)) }).where(eq(productsTable.id, item.productId));
-    }
+  if (!customerName || !date || !items?.length) {
+    return res.status(400).json({ error: "customerName, date, and items required" });
   }
 
-  await logHistory("CREATE", "invoice", invoice.id, `Created invoice ${invoiceNo} for ${customerName}`);
+  const invoiceNo = await nextInvoiceNo();
+  const total = items.reduce((sum: number, item: any) => sum + item.qty * item.price, 0);
 
-  const full = await getInvoiceWithItems(invoice.id);
+  let invoiceId: number;
+
+  // --- Transaction: insert invoice + items, then update stock ---
+  await db.transaction(async (tx) => {
+    const [invoice] = await tx
+      .insert(invoicesTable)
+      .values({ invoiceNo, customerName, date, total: String(total), deliveryId: deliveryId || null, note: note || null })
+      .returning();
+
+    invoiceId = invoice.id;
+
+    // 1. Insert all items first
+    for (const item of items) {
+      const subtotal = item.qty * item.price;
+      await tx.insert(invoiceItemsTable).values({
+        invoiceId: invoice.id,
+        productId: item.productId,
+        qty: String(item.qty),
+        price: String(item.price),
+        subtotal: String(subtotal),
+      });
+    }
+
+    // 2. Only after all items are saved, reduce stock
+    await decreaseStock(tx, items);
+  });
+
+  await logHistory("CREATE", "invoice", invoiceId!, `Created invoice ${invoiceNo} for ${customerName}`);
+  const full = await getInvoiceWithItems(invoiceId!);
   res.status(201).json(full);
 });
+
+// ── UPDATE ────────────────────────────────────────────────────────────────────
 
 router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   const { customerName, date, deliveryId, note, items } = req.body;
 
-  // Get old items to restore stock
-  const oldItems = await db
-    .select({ productId: invoiceItemsTable.productId, qty: invoiceItemsTable.qty })
-    .from(invoiceItemsTable)
-    .where(eq(invoiceItemsTable.invoiceId, id));
+  await db.transaction(async (tx) => {
+    // 1. Fetch old items to restore their stock
+    const oldItems = await tx
+      .select({ productId: invoiceItemsTable.productId, qty: invoiceItemsTable.qty })
+      .from(invoiceItemsTable)
+      .where(eq(invoiceItemsTable.invoiceId, id));
 
-  // Restore stock for old items
-  for (const oldItem of oldItems) {
-    const [product] = await db.select({ trackStock: productsTable.trackStock, stockQty: productsTable.stockQty }).from(productsTable).where(eq(productsTable.id, oldItem.productId));
-    if (product?.trackStock) {
-      await db.update(productsTable).set({ stockQty: product.stockQty + Math.round(parseFloat(oldItem.qty as any)) }).where(eq(productsTable.id, oldItem.productId));
+    // 2. Restore stock for old items
+    await restoreStock(tx, oldItems);
+
+    // 3. Update invoice header
+    const total = (items || []).reduce((sum: number, item: any) => sum + item.qty * item.price, 0);
+    await tx
+      .update(invoicesTable)
+      .set({ customerName, date, total: String(total), deliveryId: deliveryId || null, note: note || null })
+      .where(eq(invoicesTable.id, id));
+
+    // 4. Replace all items
+    await tx.delete(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, id));
+    for (const item of (items || [])) {
+      const subtotal = item.qty * item.price;
+      await tx.insert(invoiceItemsTable).values({
+        invoiceId: id,
+        productId: item.productId,
+        qty: String(item.qty),
+        price: String(item.price),
+        subtotal: String(subtotal),
+      });
     }
-  }
 
-  const total = (items || []).reduce((sum: number, item: any) => sum + item.qty * item.price, 0);
-
-  await db.update(invoicesTable).set({
-    customerName,
-    date,
-    total: String(total),
-    deliveryId: deliveryId || null,
-    note: note || null,
-  }).where(eq(invoicesTable.id, id));
-
-  // Replace items
-  await db.delete(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, id));
-  for (const item of (items || [])) {
-    const subtotal = item.qty * item.price;
-    await db.insert(invoiceItemsTable).values({
-      invoiceId: id,
-      productId: item.productId,
-      qty: String(item.qty),
-      price: String(item.price),
-      subtotal: String(subtotal),
-    });
-    const [product] = await db.select({ trackStock: productsTable.trackStock, stockQty: productsTable.stockQty }).from(productsTable).where(eq(productsTable.id, item.productId));
-    if (product?.trackStock) {
-      await db.update(productsTable).set({ stockQty: Math.max(0, product.stockQty - Math.round(item.qty)) }).where(eq(productsTable.id, item.productId));
-    }
-  }
+    // 5. Only after all items are saved, reduce stock for new items
+    await decreaseStock(tx, items || []);
+  });
 
   await logHistory("UPDATE", "invoice", id, `Updated invoice id: ${id}`);
   const full = await getInvoiceWithItems(id);
   res.json(full);
 });
 
+// ── DELETE ────────────────────────────────────────────────────────────────────
+
 router.delete("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
-  const [inv] = await db.select({ invoiceNo: invoicesTable.invoiceNo }).from(invoicesTable).where(eq(invoicesTable.id, id));
 
-  // Restore stock
-  const items = await db.select({ productId: invoiceItemsTable.productId, qty: invoiceItemsTable.qty }).from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, id));
-  for (const item of items) {
-    const [product] = await db.select({ trackStock: productsTable.trackStock, stockQty: productsTable.stockQty }).from(productsTable).where(eq(productsTable.id, item.productId));
-    if (product?.trackStock) {
-      await db.update(productsTable).set({ stockQty: product.stockQty + Math.round(parseFloat(item.qty as any)) }).where(eq(productsTable.id, item.productId));
-    }
-  }
+  await db.transaction(async (tx) => {
+    const [inv] = await tx.select({ invoiceNo: invoicesTable.invoiceNo }).from(invoicesTable).where(eq(invoicesTable.id, id));
 
-  await db.delete(invoicesTable).where(eq(invoicesTable.id, id));
-  await logHistory("DELETE", "invoice", id, `Deleted invoice ${inv?.invoiceNo || id}`);
+    const oldItems = await tx
+      .select({ productId: invoiceItemsTable.productId, qty: invoiceItemsTable.qty })
+      .from(invoiceItemsTable)
+      .where(eq(invoiceItemsTable.invoiceId, id));
+
+    // Restore stock before deleting
+    await restoreStock(tx, oldItems);
+
+    await tx.delete(invoicesTable).where(eq(invoicesTable.id, id));
+    await logHistory("DELETE", "invoice", id, `Deleted invoice ${inv?.invoiceNo || id}`);
+  });
+
   res.status(204).end();
 });
+
+// ── DUPLICATE ─────────────────────────────────────────────────────────────────
 
 router.post("/:id/duplicate", async (req, res) => {
   const id = parseInt(req.params.id);
@@ -254,27 +288,32 @@ router.post("/:id/duplicate", async (req, res) => {
   const invoiceNo = await nextInvoiceNo();
   const today = new Date().toISOString().split("T")[0];
 
-  const [newInvoice] = await db.insert(invoicesTable).values({
-    invoiceNo,
-    customerName: original.customerName,
-    date: today,
-    total: String(original.total),
-    deliveryId: null,
-    note: original.note,
-  }).returning();
+  let newInvoiceId: number;
 
-  for (const item of original.items) {
-    await db.insert(invoiceItemsTable).values({
-      invoiceId: newInvoice.id,
-      productId: item.productId,
-      qty: String(item.qty),
-      price: String(item.price),
-      subtotal: String(item.subtotal),
-    });
-  }
+  await db.transaction(async (tx) => {
+    const [newInvoice] = await tx
+      .insert(invoicesTable)
+      .values({ invoiceNo, customerName: original.customerName, date: today, total: String(original.total), deliveryId: null, note: original.note })
+      .returning();
 
-  await logHistory("CREATE", "invoice", newInvoice.id, `Duplicated invoice ${original.invoiceNo} → ${invoiceNo}`);
-  const full = await getInvoiceWithItems(newInvoice.id);
+    newInvoiceId = newInvoice.id;
+
+    for (const item of original.items) {
+      await tx.insert(invoiceItemsTable).values({
+        invoiceId: newInvoice.id,
+        productId: item.productId,
+        qty: String(item.qty),
+        price: String(item.price),
+        subtotal: String(item.subtotal),
+      });
+    }
+
+    // Reduce stock for the duplicated items
+    await decreaseStock(tx, original.items);
+  });
+
+  await logHistory("CREATE", "invoice", newInvoiceId!, `Duplicated invoice ${original.invoiceNo} → ${invoiceNo}`);
+  const full = await getInvoiceWithItems(newInvoiceId!);
   res.status(201).json(full);
 });
 
