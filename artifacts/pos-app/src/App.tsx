@@ -19,6 +19,7 @@ import HistoryLogs from "@/pages/HistoryLogs";
 import Backup from "@/pages/Backup";
 import DeliveryPacking from "@/pages/DeliveryPacking";
 import DeliveryReport from "@/pages/DeliveryReport";
+import CustomerPurchaseReport from "@/pages/CustomerPurchaseReport";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } }
@@ -41,6 +42,7 @@ function Router() {
         <Route path="/transfers" component={Transfers} />
         <Route path="/reports" component={Reports} />
         <Route path="/delivery-report" component={DeliveryReport} />
+        <Route path="/customer-report" component={CustomerPurchaseReport} />
         <Route path="/history" component={HistoryLogs} />
         <Route path="/settings" component={Backup} />
         <Route component={NotFound} />

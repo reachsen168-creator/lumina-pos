@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, invoicesTable, invoiceItemsTable, productsTable, deliveriesTable } from "@workspace/db";
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, ilike } from "drizzle-orm";
 
 const router = Router();
 
@@ -226,6 +226,78 @@ router.get("/deliveries", async (req, res) => {
   }
 
   res.json({ date: targetDate, deliveries: result });
+});
+
+/* ── Customer Purchase Report ─────────────────────────────────────────── */
+router.get("/customer", async (req, res) => {
+  const { name = "", dateFrom, dateTo } = req.query as Record<string, string>;
+  const from = dateFrom || "2000-01-01";
+  const to   = dateTo   || new Date().toISOString().split("T")[0];
+
+  const conditions: ReturnType<typeof eq>[] = [
+    gte(invoicesTable.date, from) as any,
+    lte(invoicesTable.date, to)  as any,
+  ];
+  if (name.trim()) {
+    conditions.push(ilike(invoicesTable.customerName, `%${name.trim()}%`) as any);
+  }
+
+  const invoices = await db
+    .select({
+      id:           invoicesTable.id,
+      invoiceNo:    invoicesTable.invoiceNo,
+      customerName: invoicesTable.customerName,
+      date:         invoicesTable.date,
+      total:        invoicesTable.total,
+    })
+    .from(invoicesTable)
+    .where(and(...conditions))
+    .orderBy(desc(invoicesTable.date));
+
+  const itemSummaryMap = new Map<string, number>();
+  const invoiceDetails = [];
+
+  for (const inv of invoices) {
+    const items = await db
+      .select({
+        productName: productsTable.name,
+        qty:         invoiceItemsTable.qty,
+        price:       invoiceItemsTable.price,
+      })
+      .from(invoiceItemsTable)
+      .leftJoin(productsTable, eq(invoiceItemsTable.productId, productsTable.id))
+      .where(eq(invoiceItemsTable.invoiceId, inv.id));
+
+    const mapped = items.map(i => ({
+      productName: i.productName || "Unknown",
+      qty:         parseFloat(i.qty as any),
+      price:       parseFloat(i.price as any),
+    }));
+
+    for (const it of mapped) {
+      itemSummaryMap.set(it.productName, (itemSummaryMap.get(it.productName) ?? 0) + it.qty);
+    }
+
+    invoiceDetails.push({
+      invoiceNo:    inv.invoiceNo,
+      customerName: inv.customerName,
+      date:         inv.date,
+      total:        parseFloat(inv.total as any),
+      items:        mapped,
+    });
+  }
+
+  res.json({
+    name:        name || "",
+    dateFrom:    from,
+    dateTo:      to,
+    invoices:    invoiceDetails,
+    totalBills:  invoiceDetails.length,
+    totalAmount: invoiceDetails.reduce((s, i) => s + i.total, 0),
+    itemSummary: [...itemSummaryMap.entries()]
+      .map(([productName, totalQty]) => ({ productName, totalQty }))
+      .sort((a, b) => b.totalQty - a.totalQty),
+  });
 });
 
 export default router;
