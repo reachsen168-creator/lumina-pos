@@ -68,15 +68,11 @@ function buildTripText(trip: DeliveryTrip): string {
   for (const grp of customers) {
     lines.push("");
     lines.push(`Customer : ${grp.customerName}`);
-    let customerTotal = 0;
     for (const inv of grp.invoices) {
       for (const it of inv.items) {
-        const subtotal = it.qty * it.price;
-        customerTotal += subtotal;
-        lines.push(`${it.productName} = ${it.qty} x ${fmtAmt(it.price)} = ${fmtAmt(subtotal)}`);
+        lines.push(`${it.productName} = ${it.qty} x ${fmtAmt(it.price)}`);
       }
     }
-    lines.push(`Total : ${fmtAmt(customerTotal)}`);
   }
 
   if (packageSummary.length > 0) {
