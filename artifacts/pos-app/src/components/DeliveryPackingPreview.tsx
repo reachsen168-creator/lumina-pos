@@ -136,39 +136,56 @@ export const DeliveryPackingPreview = forwardRef<HTMLDivElement, Props>(
 
               if (info) {
                 const { group, pos, total } = info;
-                // middleRow = floor(totalRows / 2)
-                const isMiddle = pos === Math.floor(total / 2);
 
                 /*
-                 * Box-drawing characters: both │ and ├── use the SAME monospace
-                 * font so vertical bars sit on the exact same horizontal position
-                 * across every row in the group.
-                 * The label (qty + type) is rendered in a separate <span> using
-                 * the Khmer font so text renders correctly.
+                 * middleRow = Math.floor((startRow + endRow) / 2)
+                 *           = Math.floor((0 + total-1) / 2)
+                 *           = Math.floor((total-1) / 2)
                  */
+                const isMulti  = total > 1;
+                const isMiddle = pos === Math.floor((total - 1) / 2);
+
+                /*
+                 * The Package column is split into two fixed-width areas:
+                 *   LEFT  (36 px, monospace) — connector character │ or ├──
+                 *   RIGHT (flex)             — package label text
+                 *
+                 * Using inline-block for both areas guarantees every label
+                 * starts at exactly the same horizontal offset regardless of
+                 * which row it's on.
+                 *
+                 * • Multi-item groups:  │ on all rows,  ├── + label on middle
+                 * • Single-item groups: no connector, just the label (aligned)
+                 */
+                const connChar  = isMulti ? (isMiddle ? "\u251C\u2500\u2500" : "\u2502") : "";
+                const showLabel = isMiddle || !isMulti;
+
                 pkgCell = (
-                  <td style={{
-                    ...s.td,
-                    borderRight: "none",
-                    paddingLeft: 14,
-                    fontFamily: MONO,
-                    fontSize: 15,
-                    color: "#1a1a1a",
-                    whiteSpace: "nowrap" as const,
-                  }}>
-                    {isMiddle ? (
-                      <>
-                        {"\u251C\u2500\u2500 "}
-                        <span style={{
-                          fontFamily: FONT,
-                          fontSize: 13,
-                          fontWeight: 700,
-                          letterSpacing: 0.2,
-                        }}>
-                          {group.packageQty} {group.packageType}
-                        </span>
-                      </>
-                    ) : "\u2502"}
+                  <td style={{ ...s.td, borderRight: "none", padding: "7px 10px", whiteSpace: "nowrap" as const }}>
+                    {/* ── Connector area (fixed 36 px) ─────────────────── */}
+                    <span style={{
+                      display: "inline-block",
+                      width: 36,
+                      fontFamily: MONO,
+                      fontSize: 15,
+                      color: "#1a1a1a",
+                      verticalAlign: "middle",
+                    }}>
+                      {connChar}
+                    </span>
+                    {/* ── Label area ────────────────────────────────────── */}
+                    {showLabel && (
+                      <span style={{
+                        fontFamily: FONT,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#1a1a1a",
+                        letterSpacing: 0.2,
+                        verticalAlign: "middle",
+                      }}>
+                        {group.packageQty}&nbsp;{group.packageType}
+                      </span>
+                    )}
                   </td>
                 );
               } else {
