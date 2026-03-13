@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
+import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -12,7 +14,7 @@ import { DateShortcuts } from "@/components/ui/date-shortcuts";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus, Search, FileText, Trash2, Edit, Truck,
-  ChevronDown, ChevronUp, Clipboard, FileDown, Image
+  ChevronDown, ChevronUp, Clipboard, FileDown, Share2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -35,7 +37,7 @@ function fmt$(n: number) {
 
 function buildText(inv: FullInvoice, showDelivery: boolean): string {
   const line = "─".repeat(60);
-  const thin = "─".repeat(60);
+  const thin  = "─".repeat(60);
   const dateStr = safeFormatDate(inv.createdAt ?? inv.date, "dd MMMM yyyy HH:mm");
 
   const header = [
@@ -46,7 +48,7 @@ function buildText(inv: FullInvoice, showDelivery: boolean): string {
     `Date & Time : ${dateStr}`,
   ];
   if (showDelivery) header.push(`Delivery    : ${inv.deliveryNo ?? "—"}`);
-  if (inv.note) header.push(`Note        : ${inv.note}`);
+  if (inv.note)     header.push(`Note        : ${inv.note}`);
 
   const colNo    = "No ".padEnd(4);
   const colName  = "Name of Good".padEnd(26);
@@ -80,6 +82,40 @@ function buildText(inv: FullInvoice, showDelivery: boolean): string {
   ].join("\n");
 }
 
+/**
+ * Renders <InvoicePreview> into a temporary off-screen DOM node,
+ * captures it with html2canvas at 3× resolution, then cleans up.
+ * Returns the canvas. The node is appended/removed synchronously so
+ * the html2canvas call stays within the original user-gesture chain.
+ */
+async function captureInvoiceCanvas(
+  inv: FullInvoice,
+  showDelivery: boolean
+): Promise<HTMLCanvasElement> {
+  const container = document.createElement("div");
+  container.style.cssText =
+    "position:fixed;left:-9999px;top:-9999px;pointer-events:none;z-index:-1;";
+  document.body.appendChild(container);
+
+  const root = createRoot(container);
+  // flushSync forces React to render synchronously before we proceed
+  flushSync(() => {
+    root.render(<InvoicePreview invoice={inv} showDelivery={showDelivery} />);
+  });
+
+  try {
+    const el = container.firstElementChild as HTMLElement;
+    return await html2canvas(el, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+    });
+  } finally {
+    root.unmount();
+    document.body.removeChild(container);
+  }
+}
+
 /* ── component ───────────────────────────────────────────────────────────── */
 
 type CachedItem = FullInvoice["items"][number];
@@ -88,12 +124,9 @@ export default function Sales() {
   const [search, setSearch]     = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo]     = useState("");
-  const [showDelivery, setShowDelivery]     = useState(true);
-  const [expandedId, setExpandedId]         = useState<number | null>(null);
-  const [itemsCache, setItemsCache]         = useState<Record<number, CachedItem[]>>({});
-  const [captureInvoice, setCaptureInvoice] = useState<FullInvoice | null>(null);
-
-  const captureRef = useRef<HTMLDivElement>(null);
+  const [showDelivery, setShowDelivery] = useState(true);
+  const [expandedId, setExpandedId]     = useState<number | null>(null);
+  const [itemsCache, setItemsCache]     = useState<Record<number, CachedItem[]>>({});
 
   const { data: invoices = [], isLoading } = useGetInvoices({
     search: search || undefined,
@@ -105,43 +138,6 @@ export default function Sales() {
   const { toast } = useToast();
   const deleteMut = useDeleteInvoice();
 
-  /* capture effect – fires when captureInvoice is set and hidden div renders */
-  useEffect(() => {
-    if (!captureInvoice || !captureRef.current) return;
-    const inv = captureInvoice;
-    const el = captureRef.current;
-    html2canvas(el, { scale: 3, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
-      const dataUrl = canvas.toDataURL("image/png");
-      const win = window.open("", "_blank");
-      if (win) {
-        win.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <title>${inv.invoiceNo}</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#111;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:16px;gap:12px}
-    img{max-width:100%;height:auto;display:block;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
-    p{color:#888;font:13px/1.5 sans-serif;text-align:center;padding-bottom:24px}
-  </style>
-</head>
-<body>
-  <img src="${dataUrl}" alt="${inv.invoiceNo}">
-  <p>Long press the image and choose &ldquo;Save to Photos&rdquo; to save it on your device.</p>
-</body>
-</html>`);
-        win.document.close();
-      }
-      toast({ title: "Invoice image opened — long press to save" });
-      setCaptureInvoice(null);
-    }).catch(() => {
-      toast({ title: "Failed to generate image", variant: "destructive" });
-      setCaptureInvoice(null);
-    });
-  }, [captureInvoice]);
-
   /* fetch full invoice (with items) */
   const fetchFull = async (id: number): Promise<FullInvoice> => {
     const res = await fetch(`/api/invoices/${id}`);
@@ -151,12 +147,9 @@ export default function Sales() {
 
   /* toggle inline items dropdown */
   const handleToggleItems = async (id: number) => {
-    if (expandedId === id) {
-      setExpandedId(null);
-      return;
-    }
+    if (expandedId === id) { setExpandedId(null); return; }
     setExpandedId(id);
-    if (itemsCache[id]) return;           // already cached
+    if (itemsCache[id]) return;
     try {
       const inv = await fetchFull(id);
       setItemsCache(prev => ({ ...prev, [id]: inv.items }));
@@ -171,7 +164,6 @@ export default function Sales() {
     try {
       await deleteMut.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getGetInvoicesQueryKey() });
-      // clear from cache if present
       setItemsCache(prev => { const n = { ...prev }; delete n[id]; return n; });
       if (expandedId === id) setExpandedId(null);
       toast({ title: "Invoice deleted" });
@@ -194,11 +186,9 @@ export default function Sales() {
     try {
       const inv = await fetchFull(id);
       const blob = new Blob([buildText(inv, showDelivery)], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${invoiceNo}.txt`;
-      a.click();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href = url; a.download = `${invoiceNo}.txt`; a.click();
       URL.revokeObjectURL(url);
       toast({ title: `Exported ${invoiceNo}.txt` });
     } catch {
@@ -206,24 +196,55 @@ export default function Sales() {
     }
   };
 
-  const handleExportImage = async (id: number) => {
+  const handleShareImage = async (id: number, invoiceNo: string) => {
     try {
-      const inv = await fetchFull(id);
-      setCaptureInvoice(inv);
-    } catch {
-      toast({ title: "Failed to load invoice", variant: "destructive" });
+      const inv    = await fetchFull(id);
+      const canvas = await captureInvoiceCanvas(inv, showDelivery);
+
+      const blob = await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob(b => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png")
+      );
+
+      const file = new File([blob], `${invoiceNo}.png`, { type: "image/png" });
+
+      // Try native share sheet (iOS Safari, Android Chrome, modern desktop)
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: invoiceNo });
+        return;
+      }
+
+      // Fallback: open full-screen preview in a new tab
+      const dataUrl = canvas.toDataURL("image/png");
+      const win = window.open("", "_blank");
+      if (win) {
+        win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <title>${invoiceNo}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#111;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:16px;gap:12px}
+    img{max-width:100%;height:auto;display:block;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+    p{color:#888;font:13px/1.5 sans-serif;text-align:center;padding-bottom:24px}
+  </style>
+</head>
+<body>
+  <img src="${dataUrl}" alt="${invoiceNo}">
+  <p>Long press the image and choose &ldquo;Save to Photos&rdquo; to save it.</p>
+</body>
+</html>`);
+        win.document.close();
+      }
+    } catch (err: any) {
+      if (err?.name === "AbortError") return; // user cancelled share
+      toast({ title: "Failed to share invoice", variant: "destructive" });
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Hidden div for PNG capture */}
-      {captureInvoice && (
-        <div style={{ position: "fixed", left: -9999, top: -9999, zIndex: -1, pointerEvents: "none" }}>
-          <InvoicePreview ref={captureRef} invoice={captureInvoice} showDelivery={showDelivery} />
-        </div>
-      )}
-
       <PageHeader
         title="Sales & Invoices"
         description="Manage all sale transactions"
@@ -282,8 +303,8 @@ export default function Sales() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {invoices.map((inv) => {
-                const isOpen  = expandedId === inv.id;
-                const cached  = itemsCache[inv.id] ?? [];
+                const isOpen   = expandedId === inv.id;
+                const cached   = itemsCache[inv.id] ?? [];
                 const subtotal = cached.reduce((s, it) => s + Number(it.subtotal), 0);
 
                 return (
@@ -312,7 +333,7 @@ export default function Sales() {
                       </div>
                     </div>
 
-                    {/* ── Inline items dropdown ── */}
+                    {/* Inline items dropdown */}
                     {isOpen && (
                       <div className="mb-3 rounded-xl bg-muted/40 border border-border overflow-hidden">
                         {cached.length === 0 ? (
@@ -341,18 +362,16 @@ export default function Sales() {
 
                     {/* Action buttons */}
                     <div className="mt-auto pt-3 border-t border-border flex flex-wrap gap-1 items-center">
-                      {/* View Items toggle */}
                       <Button
                         variant="ghost" size="sm"
                         className={`h-8 px-2 text-xs transition-colors ${isOpen ? "text-accent bg-accent/10 hover:bg-accent/20" : "text-muted-foreground hover:text-foreground"}`}
                         onClick={() => handleToggleItems(inv.id)}
                       >
                         {isOpen
-                          ? <><ChevronUp className="w-3.5 h-3.5 mr-1" /> View Items</>
+                          ? <><ChevronUp   className="w-3.5 h-3.5 mr-1" /> View Items</>
                           : <><ChevronDown className="w-3.5 h-3.5 mr-1" /> View Items</>
                         }
                       </Button>
-
                       <Button
                         variant="ghost" size="sm"
                         className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
@@ -370,9 +389,9 @@ export default function Sales() {
                       <Button
                         variant="ghost" size="sm"
                         className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
-                        onClick={() => handleExportImage(inv.id)}
+                        onClick={() => handleShareImage(inv.id, inv.invoiceNo)}
                       >
-                        <Image className="w-3.5 h-3.5 mr-1" /> Save Image
+                        <Share2 className="w-3.5 h-3.5 mr-1" /> Share Image
                       </Button>
 
                       <div className="ml-auto flex gap-1">
