@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Truck, User, Package, CalendarDays, ChevronRight, FileText, DollarSign } from "lucide-react";
+import {
+  Truck, User, Package, CalendarDays, ChevronRight,
+  FileText, DollarSign, ChevronDown, ChevronsUpDown,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -24,7 +28,7 @@ interface DeliveryTrip {
 }
 interface ReportResponse { date: string; deliveries: DeliveryTrip[] }
 
-// ── API fetch ────────────────────────────────────────────────────────────────
+// ── API ───────────────────────────────────────────────────────────────────────
 
 async function fetchDeliveryReport(date: string): Promise<ReportResponse> {
   const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -33,7 +37,7 @@ async function fetchDeliveryReport(date: string): Promise<ReportResponse> {
   return r.json();
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
   return Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`;
@@ -41,9 +45,15 @@ function fmt(n: number) {
 
 function today() { return format(new Date(), "yyyy-MM-dd"); }
 
-// ── Sub-components ───────────────────────────────────────────────────────────
+// ── CustomerRow — collapsible ─────────────────────────────────────────────────
 
-function CustomerSection({ group }: { group: CustomerGroup }) {
+interface CustomerRowProps {
+  group: CustomerGroup;
+  open: boolean;
+  onToggle: () => void;
+}
+
+function CustomerRow({ group, open, onToggle }: CustomerRowProps) {
   const allItems: (DeliveryItem & { invoiceNo: string })[] = [];
   for (const inv of group.invoices) {
     for (const it of inv.items) allItems.push({ ...it, invoiceNo: inv.invoiceNo });
@@ -51,9 +61,17 @@ function CustomerSection({ group }: { group: CustomerGroup }) {
   const customerTotal = group.invoices.reduce((s, i) => s + i.total, 0);
 
   return (
-    <div className="bg-muted/40 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="rounded-lg border border-border overflow-hidden">
+      {/* Clickable header row */}
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/70 transition-colors text-left"
+      >
         <div className="flex items-center gap-2">
+          {open
+            ? <ChevronDown className="w-4 h-4 text-accent transition-transform" />
+            : <ChevronRight className="w-4 h-4 text-muted-foreground transition-transform" />
+          }
           <User className="w-4 h-4 text-accent" />
           <span className="font-semibold text-sm">{group.customerName}</span>
           {group.invoices.length > 1 && (
@@ -61,36 +79,58 @@ function CustomerSection({ group }: { group: CustomerGroup }) {
           )}
         </div>
         <span className="text-sm font-bold text-accent">{fmt(customerTotal)}</span>
-      </div>
+      </button>
 
-      <div className="space-y-1.5 pl-6">
-        {allItems.map((it, i) => (
-          <div key={i} className="flex items-center justify-between text-sm">
-            <span className="text-foreground font-medium">{it.productName}</span>
-            <span className="text-muted-foreground tabular-nums">
-              {it.qty} × {fmt(it.price)}
-              <span className="ml-2 text-foreground font-semibold">{fmt(it.qty * it.price)}</span>
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* Collapsible item list */}
+      {open && (
+        <div className="px-4 py-3 space-y-2 bg-background border-t border-border">
+          {allItems.map((it, i) => (
+            <div key={i} className="flex items-center justify-between text-sm">
+              <span className="text-foreground font-medium">{it.productName}</span>
+              <span className="text-muted-foreground tabular-nums">
+                {it.qty} × {fmt(it.price)}
+                <span className="ml-2 text-foreground font-semibold">{fmt(it.qty * it.price)}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+// ── DeliveryCard ──────────────────────────────────────────────────────────────
+
 function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
   const { delivery, customers, packageSummary, totalBills, grandTotal } = trip;
 
+  // Collapsed state: Set of customer names that are open
+  const allNames = customers.map(c => c.customerName);
+  const [openSet, setOpenSet] = useState<Set<string>>(() => new Set(allNames));
+
+  const expandAll  = useCallback(() => setOpenSet(new Set(allNames)), [allNames.join(",")]);
+  const collapseAll = useCallback(() => setOpenSet(new Set()), []);
+  const toggle = useCallback((name: string) =>
+    setOpenSet(prev => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    }), []);
+
   const statusColor: Record<string, string> = {
     Completed: "bg-green-100 text-green-700 border-green-200",
+    Delivered: "bg-green-100 text-green-700 border-green-200",
     Pending:   "bg-yellow-100 text-yellow-700 border-yellow-200",
     Cancelled: "bg-red-100 text-red-700 border-red-200",
   };
   const badgeCls = statusColor[delivery.status] ?? "bg-secondary text-secondary-foreground";
 
+  const allOpen   = allNames.every(n => openSet.has(n));
+  const allClosed = allNames.every(n => !openSet.has(n));
+
   return (
     <Card className="overflow-hidden border-border">
-      {/* Header */}
+      {/* ── Card header ── */}
       <div className="flex items-start justify-between px-5 py-4 bg-primary/5 border-b border-border">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -117,7 +157,6 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
           </div>
         </div>
 
-        {/* Grand Total */}
         <div className="text-right">
           <div className="text-2xl font-bold text-accent">{fmt(grandTotal)}</div>
           <div className="text-xs text-muted-foreground">{totalBills} bill{totalBills !== 1 ? "s" : ""}</div>
@@ -125,18 +164,49 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
       </div>
 
       <div className="p-5 space-y-4">
-        {/* Customer sections */}
         {customers.length === 0 ? (
           <p className="text-sm text-muted-foreground italic">No invoices assigned to this delivery.</p>
         ) : (
-          <div className="space-y-3">
-            {customers.map((grp) => (
-              <CustomerSection key={grp.customerName} group={grp} />
-            ))}
-          </div>
+          <>
+            {/* ── Expand / Collapse buttons ── */}
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={expandAll}
+                disabled={allOpen}
+                className="h-8 gap-1.5 text-xs"
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5" />
+                Expand All
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={collapseAll}
+                disabled={allClosed}
+                className="h-8 gap-1.5 text-xs"
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5 rotate-90" />
+                Collapse All
+              </Button>
+            </div>
+
+            {/* ── Customer rows ── */}
+            <div className="space-y-2">
+              {customers.map((grp) => (
+                <CustomerRow
+                  key={grp.customerName}
+                  group={grp}
+                  open={openSet.has(grp.customerName)}
+                  onToggle={() => toggle(grp.customerName)}
+                />
+              ))}
+            </div>
+          </>
         )}
 
-        {/* Package Summary */}
+        {/* ── Package Summary ── */}
         {packageSummary.length > 0 && (
           <>
             <Separator />
@@ -160,20 +230,18 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
           </>
         )}
 
-        {/* Footer totals */}
+        {/* ── Footer totals ── */}
         <Separator />
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6 text-sm">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <FileText className="w-4 h-4" />
-              <span>Total Bills :</span>
-              <span className="font-bold text-foreground">{totalBills}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <DollarSign className="w-4 h-4" />
-              <span>Total Amount :</span>
-              <span className="font-bold text-accent text-base">{fmt(grandTotal)}</span>
-            </div>
+        <div className="flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <FileText className="w-4 h-4" />
+            <span>Total Bills :</span>
+            <span className="font-bold text-foreground">{totalBills}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <DollarSign className="w-4 h-4" />
+            <span>Total Amount :</span>
+            <span className="font-bold text-accent text-base">{fmt(grandTotal)}</span>
           </div>
         </div>
       </div>
@@ -181,7 +249,7 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
   );
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DeliveryReport() {
   const [date, setDate] = useState(today);
@@ -221,7 +289,7 @@ export default function DeliveryReport() {
         </div>
       </Card>
 
-      {/* Results */}
+      {/* States */}
       {isLoading && (
         <div className="flex items-center justify-center h-40 text-muted-foreground">
           <div className="flex items-center gap-2">
