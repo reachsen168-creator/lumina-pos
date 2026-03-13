@@ -492,32 +492,36 @@ export default function SaleForm() {
                       <div className="px-4 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/60 border-b border-border uppercase tracking-wide">
                         Recently Used
                       </div>
-                      {recentProducts.map((p) => (
-                        <div
-                          key={`recent-${p.id}`}
-                          className="px-4 py-3 hover:bg-muted flex justify-between items-center border-b border-border last:border-0"
-                        >
-                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleAddItem(p)}>
-                            <p className="font-semibold truncate">{p.name}</p>
-                            <p className="text-xs text-muted-foreground">{(p as any).categoryName || "No category"}</p>
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0 ml-3">
-                            <div className="text-right">
-                              <p className="font-medium text-sm">${Number(p.basePrice).toFixed(2)}</p>
-                              <p className={`text-xs ${p.stockQty <= 5 && p.trackStock ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
-                                {p.trackStock ? `${p.stockQty} in stock` : "-"}
-                              </p>
+                      {recentProducts.map((p) => {
+                        const pImg = (p as any).image as string | null;
+                        return (
+                          <div
+                            key={`recent-${p.id}`}
+                            className="px-4 py-3 hover:bg-muted flex justify-between items-center border-b border-border last:border-0"
+                          >
+                            <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer" onClick={() => handleAddItem(p)}>
+                              {pImg
+                                ? <img src={pImg} alt={p.name} className="w-9 h-9 rounded-lg object-cover border border-border shrink-0" />
+                                : <div className="w-9 h-9 rounded-lg bg-muted/60 border border-border shrink-0" />}
+                              <div className="min-w-0">
+                                <p className="font-semibold truncate">{p.name}</p>
+                                <p className="text-xs text-muted-foreground">{(p as any).categoryName || "No category"}</p>
+                              </div>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleAddItem(p)}
-                              className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/80 shrink-0"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-3 shrink-0 ml-3">
+                              <div className="text-right">
+                                <p className="font-medium text-sm">${Number(p.basePrice).toFixed(2)}</p>
+                                <p className={`text-xs ${p.stockQty <= 5 && p.trackStock ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
+                                  {p.trackStock ? `${p.stockQty} in stock` : "-"}
+                                </p>
+                              </div>
+                              <button type="button" onClick={() => handleAddItem(p)} className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/80 shrink-0">
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </>
                   )}
 
@@ -529,32 +533,36 @@ export default function SaleForm() {
                           {selectedCat !== null ? categories.find(c => c.id === selectedCat)?.name ?? "Category" : "Results"}
                         </div>
                       )}
-                      {filteredSearchProducts.map((p) => (
-                        <div
-                          key={p.id}
-                          className="px-4 py-3 hover:bg-muted flex justify-between items-center border-b border-border last:border-0"
-                        >
-                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleAddItem(p)}>
-                            <p className="font-semibold truncate">{p.name}</p>
-                            <p className="text-xs text-muted-foreground">{(p as any).categoryName || "No category"}</p>
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0 ml-3">
-                            <div className="text-right">
-                              <p className="font-medium text-sm">${Number(p.basePrice).toFixed(2)}</p>
-                              <p className={`text-xs ${p.stockQty <= 5 && p.trackStock ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
-                                {p.trackStock ? `${p.stockQty} in stock` : "-"}
-                              </p>
+                      {filteredSearchProducts.map((p) => {
+                        const pImg = (p as any).image as string | null;
+                        return (
+                          <div
+                            key={p.id}
+                            className="px-4 py-3 hover:bg-muted flex justify-between items-center border-b border-border last:border-0"
+                          >
+                            <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer" onClick={() => handleAddItem(p)}>
+                              {pImg
+                                ? <img src={pImg} alt={p.name} className="w-9 h-9 rounded-lg object-cover border border-border shrink-0" />
+                                : <div className="w-9 h-9 rounded-lg bg-muted/60 border border-border shrink-0" />}
+                              <div className="min-w-0">
+                                <p className="font-semibold truncate">{p.name}</p>
+                                <p className="text-xs text-muted-foreground">{(p as any).categoryName || "No category"}</p>
+                              </div>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleAddItem(p)}
-                              className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/80 shrink-0"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-3 shrink-0 ml-3">
+                              <div className="text-right">
+                                <p className="font-medium text-sm">${Number(p.basePrice).toFixed(2)}</p>
+                                <p className={`text-xs ${p.stockQty <= 5 && p.trackStock ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
+                                  {p.trackStock ? `${p.stockQty} in stock` : "-"}
+                                </p>
+                              </div>
+                              <button type="button" onClick={() => handleAddItem(p)} className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/80 shrink-0">
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </>
                   )}
 

@@ -10,6 +10,7 @@ export const productsTable = pgTable("products", {
   basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull().default("0"),
   trackStock: boolean("track_stock").notNull().default(false),
   stockQty: integer("stock_qty").notNull().default(0),
+  image: text("image"),
   createdDate: text("created_date").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),

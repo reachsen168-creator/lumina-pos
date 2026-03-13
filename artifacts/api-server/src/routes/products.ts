@@ -23,6 +23,7 @@ router.get("/", async (req, res) => {
       basePrice: productsTable.basePrice,
       trackStock: productsTable.trackStock,
       stockQty: productsTable.stockQty,
+      image: productsTable.image,
       createdDate: productsTable.createdDate,
     })
     .from(productsTable)
@@ -47,6 +48,7 @@ router.get("/:id", async (req, res) => {
       basePrice: productsTable.basePrice,
       trackStock: productsTable.trackStock,
       stockQty: productsTable.stockQty,
+      image: productsTable.image,
       createdDate: productsTable.createdDate,
     })
     .from(productsTable)
@@ -57,7 +59,7 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { name, categoryId, basePrice, trackStock, stockQty, createdDate } = req.body;
+  const { name, categoryId, basePrice, trackStock, stockQty, createdDate, image } = req.body;
   if (!name) return res.status(400).json({ error: "name required" });
   const today = createdDate || new Date().toISOString().split("T")[0];
   const [p] = await db.insert(productsTable).values({
@@ -66,6 +68,7 @@ router.post("/", async (req, res) => {
     basePrice: String(basePrice || 0),
     trackStock: !!trackStock,
     stockQty: stockQty || 0,
+    image: image || null,
     createdDate: today,
   }).returning();
   await logHistory("CREATE", "product", p.id, `Created product: ${p.name}`);
@@ -79,6 +82,7 @@ router.post("/", async (req, res) => {
       basePrice: productsTable.basePrice,
       trackStock: productsTable.trackStock,
       stockQty: productsTable.stockQty,
+      image: productsTable.image,
       createdDate: productsTable.createdDate,
     })
     .from(productsTable)
@@ -90,13 +94,14 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
-  const { name, categoryId, basePrice, trackStock, stockQty, createdDate } = req.body;
+  const { name, categoryId, basePrice, trackStock, stockQty, createdDate, image } = req.body;
   await db.update(productsTable).set({
     name,
     categoryId: categoryId || null,
     basePrice: String(basePrice || 0),
     trackStock: !!trackStock,
     stockQty: stockQty || 0,
+    image: image ?? null,
     createdDate,
   }).where(eq(productsTable.id, id));
   await logHistory("UPDATE", "product", id, `Updated product: ${name}`);
@@ -110,6 +115,7 @@ router.put("/:id", async (req, res) => {
       basePrice: productsTable.basePrice,
       trackStock: productsTable.trackStock,
       stockQty: productsTable.stockQty,
+      image: productsTable.image,
       createdDate: productsTable.createdDate,
     })
     .from(productsTable)
