@@ -1,0 +1,114 @@
+ing{variant="standard" id="74261"}
+UPDATE SALES REPORT PAGE WITH TOGGLE VIEW
+
+Keep the existing Sales Report exactly the same.
+
+Add a new button inside the Sales Report controls:
+
+Customer Receipt Report
+
+------------------------------------------------
+
+VIEW BEHAVIOR
+
+When the user clicks "Customer Receipt Report":
+
+1. Hide the current Sales Report section.
+2. Show a new section called "Customer Receipt Report".
+
+When the user clicks the button "Close Receipt Report":
+
+1. Hide the Customer Receipt Report.
+2. Show the original Sales Report again.
+
+------------------------------------------------
+
+STRUCTURE
+
+Use two main containers:
+
+salesReportSection
+customerReceiptSection
+
+Default state:
+
+salesReportSection = visible  
+customerReceiptSection = hidden
+
+------------------------------------------------
+
+BUTTON ACTIONS
+
+Customer Receipt Report button:
+- Hide salesReportSection
+- Show customerReceiptSection
+
+Close Receipt Report button:
+- Hide customerReceiptSection
+- Show salesReportSection
+
+------------------------------------------------
+
+CUSTOMER RECEIPT REPORT CONTENT
+
+Filters:
+- Customer dropdown
+- From Date
+- To Date
+- Generate Report button
+
+------------------------------------------------
+
+REPORT FORMAT
+
+Customer : [Customer Name]
+From : [Start Date]
+To : [End Date]
+
+--------------------------------
+
+Group results by DATE
+
+Example:
+
+11/03/2026
+
+Beer        3 × $15 = $45
+Orange      1 × $5  = $5
+Water       1 × $3  = $3
+
+--------------------------------
+
+13/03/2026
+
+Water       10 × $2 = $20
+Beer        5 × $2  = $10
+
+--------------------------------
+
+TOTAL ALL : $83
+
+------------------------------------------------
+
+EXTRA BUTTONS
+
+Export Image  
+Copy Text  
+Close Receipt Report
+
+------------------------------------------------
+
+MOBILE DESIGN
+
+Must look clean on phones with clear spacing and aligned columns.
+
+------------------------------------------------
+
+DATA SOURCE
+
+Use existing sales invoices/bills.
+
+Filter by:
+Customer + Date Range
+
+Group items by date automatically.

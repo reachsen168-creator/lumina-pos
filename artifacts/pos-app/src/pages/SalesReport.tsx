@@ -471,6 +471,7 @@ function ReceiptPrintView({ data, printRef }: { data: ReceiptData; printRef: Rea
 }
 
 // ── Customer Receipt Report section ──────────────────────────────────────────
+// Rendered as a full standalone page-swap (not inside a Card)
 
 function CustomerReceiptReport({ customers, onClose }: { customers: CustomerRow[]; onClose: () => void }) {
   const [rcCustomer, setRcCustomer] = useState("__none__");
@@ -521,20 +522,15 @@ function CustomerReceiptReport({ customers, onClose }: { customers: CustomerRow[
   }, [data]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ReceiptText className="w-5 h-5 text-accent" />
-          <h2 className="text-base font-bold">Customer Receipt Report</h2>
-        </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-          <X className="w-4 h-4" />
-        </Button>
-      </div>
+      <PageHeader
+        title="Customer Receipt Report"
+        description="View purchase history grouped by date for a specific customer"
+      />
 
       {/* Filter */}
-      <Card className="p-4 border-accent/30 bg-accent/5">
+      <Card className="p-4">
         <div className="flex flex-col gap-4">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Customer <span className="text-red-500">*</span></Label>
@@ -562,13 +558,18 @@ function CustomerReceiptReport({ customers, onClose }: { customers: CustomerRow[
             </div>
           </div>
 
-          <Button
-            onClick={handleGenerate}
-            disabled={rcCustomer === "__none__"}
-            className="w-full sm:w-auto gap-2"
-          >
-            <Search className="w-4 h-4" /> Generate Customer Report
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              onClick={handleGenerate}
+              disabled={rcCustomer === "__none__"}
+              className="flex-1 sm:flex-none gap-2"
+            >
+              <Search className="w-4 h-4" /> Generate Report
+            </Button>
+            <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none gap-2">
+              <X className="w-4 h-4" /> Close Receipt Report
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -597,7 +598,7 @@ function CustomerReceiptReport({ customers, onClose }: { customers: CustomerRow[
       {/* Receipt results */}
       {rcQuery && !isLoading && !isError && data && (
         <>
-          {/* Action buttons */}
+          {/* Action buttons — Export Image / Copy Text / Close Receipt Report */}
           <div className="flex flex-col sm:flex-row gap-[10px]">
             <Button variant="outline" onClick={handleExport} disabled={exporting}
               className="flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium">
@@ -608,6 +609,10 @@ function CustomerReceiptReport({ customers, onClose }: { customers: CustomerRow[
             <Button variant={copied ? "default" : "outline"} onClick={handleCopy}
               className={`flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium transition-all ${copied ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : ""}`}>
               {copied ? <><Check className="w-4 h-4" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy Text</>}
+            </Button>
+            <Button variant="outline" onClick={onClose}
+              className="flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium">
+              <X className="w-4 h-4" /> Close Receipt Report
             </Button>
           </div>
 
@@ -694,95 +699,104 @@ export default function SalesReport() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Sales Report"
-        description="Full sales summary with bills, items, and customer breakdown"
-      />
 
-      {/* ── Filter Card ── */}
-      <Card className="p-4">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="space-y-1.5 flex-1">
-              <Label htmlFor="sf-from" className="text-sm font-medium">Date From</Label>
-              <Input id="sf-from" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-            </div>
-            <div className="space-y-1.5 flex-1">
-              <Label htmlFor="sf-to" className="text-sm font-medium">Date To</Label>
-              <Input id="sf-to" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Customer</Label>
-            <Select value={customer} onValueChange={setCustomer}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Customers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All Customers</SelectItem>
-                {(customers ?? []).map(c => (
-                  <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Buttons row */}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={handleGenerate} className="flex-1 sm:flex-none gap-2">
-              <Search className="w-4 h-4" /> Generate Report
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowReceipt(v => !v)}
-              className={`flex-1 sm:flex-none gap-2 ${showReceipt ? "border-accent text-accent bg-accent/5" : ""}`}
-            >
-              <ReceiptText className="w-4 h-4" />
-              Customer Receipt Report
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* ── Customer Receipt Report section ── */}
-      {showReceipt && (
-        <Card className="p-4">
-          <CustomerReceiptReport
-            customers={customers ?? []}
-            onClose={() => setShowReceipt(false)}
+      {/* ══════════════════════════════════════════════════════════
+          SALES REPORT VIEW  (hidden when receipt view is active)
+      ══════════════════════════════════════════════════════════ */}
+      {!showReceipt && (
+        <>
+          <PageHeader
+            title="Sales Report"
+            description="Full sales summary with bills, items, and customer breakdown"
           />
-        </Card>
+
+          {/* Filter Card */}
+          <Card className="p-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="space-y-1.5 flex-1">
+                  <Label htmlFor="sf-from" className="text-sm font-medium">Date From</Label>
+                  <Input id="sf-from" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                </div>
+                <div className="space-y-1.5 flex-1">
+                  <Label htmlFor="sf-to" className="text-sm font-medium">Date To</Label>
+                  <Input id="sf-to" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Customer</Label>
+                <Select value={customer} onValueChange={setCustomer}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Customers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Customers</SelectItem>
+                    {(customers ?? []).map(c => (
+                      <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Buttons row */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button onClick={handleGenerate} className="flex-1 sm:flex-none gap-2">
+                  <Search className="w-4 h-4" /> Generate Report
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReceipt(true)}
+                  className="flex-1 sm:flex-none gap-2"
+                >
+                  <ReceiptText className="w-4 h-4" />
+                  Customer Receipt Report
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Empty state */}
+          {!query && (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-muted-foreground">
+              <ReceiptText className="w-12 h-12 opacity-20" />
+              <p className="text-sm">Set the date range and press Generate Report.</p>
+            </div>
+          )}
+
+          {query && isLoading && (
+            <div className="flex items-center justify-center h-40 text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                Generating report…
+              </div>
+            </div>
+          )}
+
+          {query && isError && (
+            <Card className="p-6 text-center text-red-500 border-red-200 bg-red-50">
+              Failed to load report. Please try again.
+            </Card>
+          )}
+
+          {query && !isLoading && !isError && data && (
+            <div className="space-y-4">
+              <ReportResults data={data} />
+            </div>
+          )}
+        </>
       )}
 
-      {/* ── Sales Report States ── */}
-      {!query && !showReceipt && (
-        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-muted-foreground">
-          <ReceiptText className="w-12 h-12 opacity-20" />
-          <p className="text-sm">Set the date range and press Generate Report.</p>
-        </div>
+      {/* ══════════════════════════════════════════════════════════
+          CUSTOMER RECEIPT VIEW  (hidden when sales view is active)
+      ══════════════════════════════════════════════════════════ */}
+      {showReceipt && (
+        <CustomerReceiptReport
+          customers={customers ?? []}
+          onClose={() => setShowReceipt(false)}
+        />
       )}
 
-      {query && isLoading && (
-        <div className="flex items-center justify-center h-40 text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            Generating report…
-          </div>
-        </div>
-      )}
-
-      {query && isError && (
-        <Card className="p-6 text-center text-red-500 border-red-200 bg-red-50">
-          Failed to load report. Please try again.
-        </Card>
-      )}
-
-      {query && !isLoading && !isError && data && (
-        <div className="space-y-4">
-          <ReportResults data={data} />
-        </div>
-      )}
     </div>
   );
 }
