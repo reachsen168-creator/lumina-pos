@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit2, Trash2, Truck, FileText, Download, ArrowLeft, Eye, EyeOff, ChevronDown } from "lucide-react";
+import { Plus, Edit2, Trash2, Truck, FileText, Download, ArrowLeft, Eye, EyeOff, ChevronDown, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
@@ -167,8 +167,11 @@ export default function Deliveries() {
 
 function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
   const { data, isLoading } = useGetDeliveryDetail(id, { query: { enabled: !!id } } as any);
+  const { toast } = useToast();
   const [showPrice, setShowPrice] = useState(true);
   const [expandedCustomers, setExpandedCustomers] = useState<Set<number>>(new Set());
+  const [copiedWith,    setCopiedWith]    = useState(false);
+  const [copiedWithout, setCopiedWithout] = useState(false);
 
   const toggleCustomer = (idx: number) => {
     setExpandedCustomers(prev => {
@@ -186,27 +189,36 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
 
   const { delivery, customerGroups = [], productSummary = [], grandTotal = 0 } = data as any;
 
-  const exportTxt = (mode: 'price'|'no-price') => {
-    let txt = `Delivery No: ${delivery.deliveryNo}\nDate: ${delivery.date.split('T')[0]}\n\n`;
+  const buildTxt = (mode: 'price' | 'no-price') => {
+    let txt = `Delivery: ${delivery.deliveryNo}\n`;
+    if (delivery.driver) txt += `Driver: ${delivery.driver}\n`;
+    txt += `Date: ${delivery.date.split('T')[0]}\n\n`;
     customerGroups.forEach((cg: any) => {
-      txt += `Cus: ${cg.customerName}\n`;
+      txt += `${cg.customerName}\n`;
       cg.invoices.forEach((inv: any) => {
         inv.items.forEach((item: any) => {
           if (mode === 'price') {
-            txt += `${item.productName} = ${item.qty} x ${item.price}$ = ${item.subtotal}$\n`;
+            txt += `${item.productName} x${item.qty} - $${Number(item.subtotal).toFixed(2)}\n`;
           } else {
-            txt += `${item.productName} = ${item.qty}\n`;
+            txt += `${item.productName} x${item.qty}\n`;
           }
         });
       });
-      if (mode === 'price') txt += `Total: ${cg.customerTotal}$\n`;
+      if (mode === 'price') txt += `Total: $${Number(cg.customerTotal).toFixed(2)}\n`;
       txt += '\n';
     });
     txt += `TOTAL ITEMS\n`;
     productSummary.forEach((ps: any) => {
       txt += `${ps.productName} = ${ps.totalQty}\n`;
     });
-    
+    if (mode === 'price') {
+      txt += `\nGrand Total: $${Number(grandTotal).toFixed(2)}\n`;
+    }
+    return txt;
+  };
+
+  const exportTxt = (mode: 'price' | 'no-price') => {
+    const txt = buildTxt(mode);
     const blob = new Blob([txt], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -214,6 +226,29 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
     a.download = `Delivery_${delivery.deliveryNo}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const copyTxt = async (mode: 'price' | 'no-price') => {
+    const txt = buildTxt(mode);
+    try {
+      await navigator.clipboard.writeText(txt);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.style.cssText = 'position:fixed;opacity:0;left:0;top:0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    if (mode === 'price') {
+      setCopiedWith(true);
+      setTimeout(() => setCopiedWith(false), 2000);
+    } else {
+      setCopiedWithout(true);
+      setTimeout(() => setCopiedWithout(false), 2000);
+    }
+    toast({ title: 'Copied to clipboard' });
   };
 
   return (
@@ -235,6 +270,24 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
         </Button>
         <Button variant="secondary" onClick={() => exportTxt('no-price')} className="rounded-xl h-11 border border-border">
           <Download className="w-4 h-4 mr-2" /> Export TXT (No Prices)
+        </Button>
+        <Button
+          variant={copiedWith ? "default" : "outline"}
+          onClick={() => copyTxt('price')}
+          className={`rounded-xl h-11 transition-all ${copiedWith ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : "bg-card"}`}
+        >
+          {copiedWith
+            ? <><Check className="w-4 h-4 mr-2" /> Copied!</>
+            : <><Copy className="w-4 h-4 mr-2" /> Copy Text (With Prices)</>}
+        </Button>
+        <Button
+          variant={copiedWithout ? "default" : "outline"}
+          onClick={() => copyTxt('no-price')}
+          className={`rounded-xl h-11 transition-all ${copiedWithout ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : "bg-card"}`}
+        >
+          {copiedWithout
+            ? <><Check className="w-4 h-4 mr-2" /> Copied!</>
+            : <><Copy className="w-4 h-4 mr-2" /> Copy Text (No Prices)</>}
         </Button>
       </div>
 
