@@ -11,6 +11,7 @@ import transfersRouter from "./transfers.js";
 import reportsRouter from "./reports.js";
 import historyRouter from "./history.js";
 import backupRouter from "./backup.js";
+import trashRouter from "./trash.js";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use("/transfers", transfersRouter);
 router.use("/reports", reportsRouter);
 router.use("/history", historyRouter);
 router.use("/backup", backupRouter);
+router.use("/trash", trashRouter);
 
 export default router;

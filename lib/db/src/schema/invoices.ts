@@ -15,6 +15,8 @@ export const invoicesTable = pgTable("invoices", {
   status: text("status").notNull().default("Completed"),
   packingGroups: text("packing_groups"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
+  deletedBy: text("deleted_by"),
 });
 
 export const invoiceItemsTable = pgTable("invoice_items", {

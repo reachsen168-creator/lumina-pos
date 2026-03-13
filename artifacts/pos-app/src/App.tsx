@@ -16,6 +16,7 @@ import DamageManagement from "@/pages/DamageManagement";
 import Transfers from "@/pages/Transfers";
 import Reports from "@/pages/Reports";
 import HistoryLogs from "@/pages/HistoryLogs";
+import Trash from "@/pages/Trash";
 import Backup from "@/pages/Backup";
 import DeliveryPacking from "@/pages/DeliveryPacking";
 import DeliveryReport from "@/pages/DeliveryReport";
@@ -44,6 +45,7 @@ function Router() {
         <Route path="/delivery-report" component={DeliveryReport} />
         <Route path="/sales-report" component={SalesReport} />
         <Route path="/history" component={HistoryLogs} />
+        <Route path="/trash" component={Trash} />
         <Route path="/settings" component={Backup} />
         <Route component={NotFound} />
       </Switch>

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, invoicesTable, invoiceItemsTable, productsTable, deliveriesTable } from "@workspace/db";
-import { eq, and, gte, lte, desc, sql, ilike, ne } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, ilike, ne, isNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -20,7 +20,7 @@ router.get("/dashboard", async (req, res) => {
       note: invoicesTable.note,
     })
     .from(invoicesTable)
-    .where(and(eq(invoicesTable.date, today), ne(invoicesTable.status, "Fully Damaged")))
+    .where(and(eq(invoicesTable.date, today), ne(invoicesTable.status, "Fully Damaged"), isNull(invoicesTable.deletedAt)))
     .orderBy(desc(invoicesTable.id));
 
   const totalSales = todayInvoices.reduce((s, i) => s + parseFloat(i.total as any), 0);
@@ -93,7 +93,7 @@ router.get("/sales", async (req, res) => {
       total: invoicesTable.total,
     })
     .from(invoicesTable)
-    .where(and(gte(invoicesTable.date, from), lte(invoicesTable.date, to), ne(invoicesTable.status, "Fully Damaged")))
+    .where(and(gte(invoicesTable.date, from), lte(invoicesTable.date, to), ne(invoicesTable.status, "Fully Damaged"), isNull(invoicesTable.deletedAt)))
     .orderBy(invoicesTable.date);
 
   const byDateMap = new Map<string, { date: string; totalSales: number; invoiceCount: number }>();
@@ -162,7 +162,7 @@ router.get("/deliveries", async (req, res) => {
         packingGroups: invoicesTable.packingGroups,
       })
       .from(invoicesTable)
-      .where(eq(invoicesTable.deliveryId, delivery.id))
+      .where(and(eq(invoicesTable.deliveryId, delivery.id), isNull(invoicesTable.deletedAt)))
       .orderBy(invoicesTable.customerName);
 
     // Aggregate package summary from packing JSON across all invoices
@@ -238,6 +238,7 @@ router.get("/sales-full", async (req, res) => {
     gte(invoicesTable.date, from),
     lte(invoicesTable.date, to),
     ne(invoicesTable.status, "Fully Damaged"),
+    isNull(invoicesTable.deletedAt),
   ];
   if (customer.trim()) {
     conditions.push(ilike(invoicesTable.customerName, `%${customer.trim()}%`));
@@ -337,6 +338,7 @@ router.get("/customer-receipt", async (req, res) => {
       lte(invoicesTable.date, to),
       ilike(invoicesTable.customerName, `%${customer.trim()}%`),
       ne(invoicesTable.status, "Fully Damaged"),
+      isNull(invoicesTable.deletedAt),
     ))
     .orderBy(invoicesTable.date);
 

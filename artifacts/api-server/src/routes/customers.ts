@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, invoicesTable, invoiceItemsTable, productsTable, customersTable } from "@workspace/db";
-import { eq, and, gte, lte, ilike, desc } from "drizzle-orm";
+import { eq, and, gte, lte, ilike, desc, isNull } from "drizzle-orm";
 import { logHistory } from "./history.js";
 
 const router = Router();
@@ -9,10 +9,12 @@ const router = Router();
 
 router.get("/", async (req, res) => {
   const { search } = req.query as Record<string, string>;
+  const conditions: any[] = [isNull(customersTable.deletedAt)];
+  if (search) conditions.push(ilike(customersTable.name, `%${search}%`));
   const rows = await db
     .select()
     .from(customersTable)
-    .where(search ? ilike(customersTable.name, `%${search}%`) : undefined)
+    .where(and(...conditions))
     .orderBy(customersTable.name);
   res.json(rows);
 });
@@ -49,7 +51,7 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   const [existing] = await db.select().from(customersTable).where(eq(customersTable.id, id));
-  await db.delete(customersTable).where(eq(customersTable.id, id));
+  await db.update(customersTable).set({ deletedAt: new Date(), deletedBy: "Admin" }).where(eq(customersTable.id, id));
   await logHistory("DELETE", "customer", id, `Deleted customer: ${existing?.name || id}`);
   res.status(204).end();
 });

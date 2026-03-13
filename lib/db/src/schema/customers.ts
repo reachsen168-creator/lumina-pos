@@ -9,6 +9,8 @@ export const customersTable = pgTable("customers", {
   note: text("note"),
   createdDate: text("created_date").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
+  deletedBy: text("deleted_by"),
 });
 
 export const insertCustomerSchema = createInsertSchema(customersTable).omit({ id: true, createdAt: true });

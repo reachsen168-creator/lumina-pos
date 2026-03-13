@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, productsTable, categoriesTable } from "@workspace/db";
-import { eq, and, gte, lte, ilike, or, sql } from "drizzle-orm";
+import { eq, and, gte, lte, ilike, or, sql, isNull } from "drizzle-orm";
 import { logHistory } from "./history.js";
 
 const router = Router();
@@ -8,7 +8,7 @@ const router = Router();
 router.get("/", async (req, res) => {
   const { search, categoryId, dateFrom, dateTo } = req.query as Record<string, string>;
 
-  const conditions = [];
+  const conditions: any[] = [isNull(productsTable.deletedAt)];
   if (search) conditions.push(ilike(productsTable.name, `%${search}%`));
   if (categoryId) conditions.push(eq(productsTable.categoryId, parseInt(categoryId)));
   if (dateFrom) conditions.push(gte(productsTable.createdDate, dateFrom));
@@ -27,7 +27,7 @@ router.get("/", async (req, res) => {
     })
     .from(productsTable)
     .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.id))
-    .where(conditions.length ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(productsTable.name);
 
   res.json(products.map((p) => ({
@@ -122,7 +122,7 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   const [p] = await db.select({ name: productsTable.name }).from(productsTable).where(eq(productsTable.id, id));
-  await db.delete(productsTable).where(eq(productsTable.id, id));
+  await db.update(productsTable).set({ deletedAt: new Date(), deletedBy: "Admin" }).where(eq(productsTable.id, id));
   await logHistory("DELETE", "product", id, `Deleted product: ${p?.name || id}`);
   res.status(204).end();
 });

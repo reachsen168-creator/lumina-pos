@@ -9,6 +9,8 @@ export const deliveriesTable = pgTable("deliveries", {
   driver: text("driver"),
   status: text("status").notNull().default("Pending"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
+  deletedBy: text("deleted_by"),
 });
 
 export const insertDeliverySchema = createInsertSchema(deliveriesTable).omit({ id: true, createdAt: true });

@@ -12,6 +12,8 @@ export const productsTable = pgTable("products", {
   stockQty: integer("stock_qty").notNull().default(0),
   createdDate: text("created_date").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
+  deletedBy: text("deleted_by"),
 });
 
 export const insertProductSchema = createInsertSchema(productsTable).omit({ id: true, createdAt: true });

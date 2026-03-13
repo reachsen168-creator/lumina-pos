@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, invoicesTable, invoiceItemsTable, productsTable, deliveriesTable } from "@workspace/db";
-import { eq, and, gte, lte, ilike, desc } from "drizzle-orm";
+import { eq, and, gte, lte, ilike, desc, isNull } from "drizzle-orm";
 import { logHistory } from "./history.js";
 
 const router = Router();
@@ -146,7 +146,7 @@ router.get("/last-price", async (req, res) => {
 router.get("/", async (req, res) => {
   const { search, dateFrom, dateTo, deliveryId } = req.query as Record<string, string>;
 
-  const conditions = [];
+  const conditions: any[] = [isNull(invoicesTable.deletedAt)];
   if (search) conditions.push(ilike(invoicesTable.customerName, `%${search}%`));
   if (dateFrom) conditions.push(gte(invoicesTable.date, dateFrom));
   if (dateTo) conditions.push(lte(invoicesTable.date, dateTo));
@@ -167,7 +167,7 @@ router.get("/", async (req, res) => {
     })
     .from(invoicesTable)
     .leftJoin(deliveriesTable, eq(invoicesTable.deliveryId, deliveriesTable.id))
-    .where(conditions.length ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(desc(invoicesTable.date), desc(invoicesTable.id));
 
   res.json(invoices.map(i => ({
@@ -289,18 +289,18 @@ router.delete("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
 
   await db.transaction(async (tx) => {
-    const [inv] = await tx.select({ invoiceNo: invoicesTable.invoiceNo }).from(invoicesTable).where(eq(invoicesTable.id, id));
+    const [inv] = await tx.select({ invoiceNo: invoicesTable.invoiceNo, customerName: invoicesTable.customerName }).from(invoicesTable).where(eq(invoicesTable.id, id));
 
     const oldItems = await tx
       .select({ productId: invoiceItemsTable.productId, qty: invoiceItemsTable.qty })
       .from(invoiceItemsTable)
       .where(eq(invoiceItemsTable.invoiceId, id));
 
-    // Restore stock before deleting
+    // Restore stock on soft-delete (same as before)
     await restoreStock(tx, oldItems);
 
-    await tx.delete(invoicesTable).where(eq(invoicesTable.id, id));
-    await logHistory("DELETE", "invoice", id, `Deleted invoice ${inv?.invoiceNo || id}`);
+    await tx.update(invoicesTable).set({ deletedAt: new Date(), deletedBy: "Admin" }).where(eq(invoicesTable.id, id));
+    await logHistory("DELETE", "invoice", id, `Deleted invoice ${inv?.invoiceNo || id} (${inv?.customerName || ""})`);
   });
 
   res.status(204).end();

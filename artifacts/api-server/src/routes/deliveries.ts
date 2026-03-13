@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { db, deliveriesTable, invoicesTable, invoiceItemsTable, productsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { logHistory } from "./history.js";
 
 const router = Router();
 
 router.get("/", async (_req, res) => {
-  const deliveries = await db.select().from(deliveriesTable).orderBy(deliveriesTable.deliveryNo);
+  const deliveries = await db.select().from(deliveriesTable).where(isNull(deliveriesTable.deletedAt)).orderBy(deliveriesTable.deliveryNo);
   res.json(deliveries.map(d => ({
     id: d.id, deliveryNo: d.deliveryNo, date: d.date, driver: d.driver, status: d.status
   })));
@@ -33,8 +33,9 @@ router.put("/:id", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
-  await db.delete(deliveriesTable).where(eq(deliveriesTable.id, id));
-  await logHistory("DELETE", "delivery", id, `Deleted delivery id: ${id}`);
+  const [d] = await db.select({ deliveryNo: deliveriesTable.deliveryNo }).from(deliveriesTable).where(eq(deliveriesTable.id, id));
+  await db.update(deliveriesTable).set({ deletedAt: new Date(), deletedBy: "Admin" }).where(eq(deliveriesTable.id, id));
+  await logHistory("DELETE", "delivery", id, `Deleted delivery: ${d?.deliveryNo || id}`);
   res.status(204).end();
 });
 

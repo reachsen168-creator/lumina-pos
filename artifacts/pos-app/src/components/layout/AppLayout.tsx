@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, Package, Tags, ReceiptText, 
   Users, Truck, HeartCrack, ArrowRightLeft, 
-  BarChart3, History, DatabaseBackup, Menu, X, ClipboardList, TrendingUp
+  BarChart3, History, DatabaseBackup, Menu, X, ClipboardList, TrendingUp, Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -22,6 +22,7 @@ const navItems = [
   { href: "/delivery-report", label: "Delivery Report", icon: ClipboardList },
   { href: "/sales-report",    label: "Sales Report",    icon: TrendingUp },
   { href: "/history", label: "History Logs", icon: History },
+  { href: "/trash", label: "Trash / Restore", icon: Trash2 },
   { href: "/settings", label: "Backup & Restore", icon: DatabaseBackup },
 ];
 
