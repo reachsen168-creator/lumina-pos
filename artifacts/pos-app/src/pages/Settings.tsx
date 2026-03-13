@@ -47,7 +47,7 @@ export default function Settings() {
       return;
     }
     const url = `https://t.me/${clean}?text=${encodeURIComponent("Telegram connection successful")}`;
-    window.open(url, "_blank");
+    window.location.href = url;
   };
 
   return (

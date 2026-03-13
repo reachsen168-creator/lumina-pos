@@ -1,6 +1,6 @@
 {
   "version": "2",
-  "exportedAt": "2026-03-13T11:55:54.682Z",
+  "exportedAt": "2026-03-13T12:52:09.583Z",
   "categories": [
     {
       "id": 1,
@@ -43,7 +43,7 @@
       "name": "Test Beer",
       "categoryId": null,
       "basePrice": "5.00",
-      "trackStock": true,
+      "trackStock": false,
       "stockQty": 17,
       "createdDate": "2026-03-13",
       "createdAt": "2026-03-13T02:39:10.230Z",
@@ -109,6 +109,20 @@
       "status": "Completed",
       "packingGroups": "[{\"id\":\"qh63683\",\"itemIndices\":[0,1,2],\"packageType\":\"កេះ\",\"packageQty\":1}]",
       "createdAt": "2026-03-13T02:39:11.209Z",
+      "deletedAt": null,
+      "deletedBy": null
+    },
+    {
+      "id": 41,
+      "invoiceNo": "INV-007",
+      "customerName": "Test",
+      "date": "2026-03-13",
+      "total": "55.00",
+      "deliveryId": null,
+      "note": null,
+      "status": "Completed",
+      "packingGroups": null,
+      "createdAt": "2026-03-13T12:50:43.092Z",
       "deletedAt": null,
       "deletedBy": null
     },
@@ -218,6 +232,15 @@
       "price": "55.00",
       "subtotal": "110.00",
       "createdAt": "2026-03-13T07:06:06.231Z"
+    },
+    {
+      "id": 54,
+      "invoiceId": 41,
+      "productId": 1,
+      "qty": "1.00",
+      "price": "55.00",
+      "subtotal": "55.00",
+      "createdAt": "2026-03-13T12:50:43.092Z"
     }
   ],
   "deliveries": [
@@ -724,6 +747,36 @@
       "description": "Deleted invoice INV-004",
       "date": "2026-03-13",
       "createdAt": "2026-03-13T10:40:03.782Z"
+    },
+    {
+      "id": 75,
+      "user": "Admin",
+      "action": "UPDATE",
+      "entity": "product",
+      "entityId": 2,
+      "description": "Updated product: Test Beer",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T12:36:36.721Z"
+    },
+    {
+      "id": 76,
+      "user": "Admin",
+      "action": "UPDATE",
+      "entity": "product",
+      "entityId": 2,
+      "description": "Updated product: Test Beer",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T12:36:37.910Z"
+    },
+    {
+      "id": 77,
+      "user": "Admin",
+      "action": "CREATE",
+      "entity": "invoice",
+      "entityId": 41,
+      "description": "Created invoice INV-007 for Test",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T12:50:43.184Z"
     }
   ]
 }

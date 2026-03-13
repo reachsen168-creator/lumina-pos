@@ -220,7 +220,7 @@ export default function Sales() {
       const inv = await fetchFull(id);
       const text = buildTelegramText(inv);
       const url  = `https://t.me/${tg.username}?text=${encodeURIComponent(text)}`;
-      window.open(url, "_blank");
+      window.location.href = url;
     } catch {
       toast({ title: "Failed to prepare message", variant: "destructive" });
     }
