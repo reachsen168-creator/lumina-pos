@@ -108,19 +108,34 @@ export default function Sales() {
   /* capture effect – fires when captureInvoice is set and hidden div renders */
   useEffect(() => {
     if (!captureInvoice || !captureRef.current) return;
+    const inv = captureInvoice;
     const el = captureRef.current;
-    html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
-      canvas.toBlob(blob => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${captureInvoice.invoiceNo}.png`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast({ title: `Exported ${captureInvoice.invoiceNo}.png` });
-        setCaptureInvoice(null);
-      }, "image/png");
+    html2canvas(el, { scale: 3, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
+      const dataUrl = canvas.toDataURL("image/png");
+      const win = window.open("", "_blank");
+      if (win) {
+        win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>${inv.invoiceNo}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#111;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:16px;gap:12px}
+    img{max-width:100%;height:auto;display:block;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+    p{color:#888;font:13px/1.5 sans-serif;text-align:center;padding-bottom:24px}
+  </style>
+</head>
+<body>
+  <img src="${dataUrl}" alt="${inv.invoiceNo}">
+  <p>Long press the image and choose &ldquo;Save to Photos&rdquo; to save it on your device.</p>
+</body>
+</html>`);
+        win.document.close();
+      }
+      toast({ title: "Invoice image opened — long press to save" });
+      setCaptureInvoice(null);
     }).catch(() => {
       toast({ title: "Failed to generate image", variant: "destructive" });
       setCaptureInvoice(null);
@@ -357,7 +372,7 @@ export default function Sales() {
                         className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
                         onClick={() => handleExportImage(inv.id)}
                       >
-                        <Image className="w-3.5 h-3.5 mr-1" /> Export Image
+                        <Image className="w-3.5 h-3.5 mr-1" /> Save Image
                       </Button>
 
                       <div className="ml-auto flex gap-1">
