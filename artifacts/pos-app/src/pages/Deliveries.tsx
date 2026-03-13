@@ -178,6 +178,9 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
     });
   };
 
+  const expandAll  = () => setExpandedCustomers(new Set((data as any)?.customerGroups?.map((_: any, i: number) => i) ?? []));
+  const collapseAll = () => setExpandedCustomers(new Set());
+
   if (isLoading) return <div className="py-24 text-center text-muted-foreground">Loading details...</div>;
   if (!data) return <div className="py-24 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100">Failed to load delivery details.</div>;
 
@@ -237,7 +240,15 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className="space-y-6">
-          <h2 className="text-xl font-display font-bold flex items-center gap-2"><Truck className="w-5 h-5 text-accent" /> Customer Invoices</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-xl font-display font-bold flex items-center gap-2"><Truck className="w-5 h-5 text-accent" /> Customer Invoices</h2>
+            {customerGroups.length > 0 && (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="rounded-lg h-8 text-xs" onClick={expandAll}>Expand All</Button>
+                <Button variant="outline" size="sm" className="rounded-lg h-8 text-xs" onClick={collapseAll}>Collapse All</Button>
+              </div>
+            )}
+          </div>
           {customerGroups.length === 0 && <p className="text-muted-foreground italic">No invoices attached to this delivery.</p>}
           {customerGroups.map((cg: any, i: number) => {
             const isOpen = expandedCustomers.has(i);
