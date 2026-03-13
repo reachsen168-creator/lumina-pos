@@ -14,6 +14,7 @@ async function getInvoiceWithItems(id: number) {
       invoiceNo: invoicesTable.invoiceNo,
       customerName: invoicesTable.customerName,
       date: invoicesTable.date,
+      createdAt: invoicesTable.createdAt,
       total: invoicesTable.total,
       deliveryId: invoicesTable.deliveryId,
       deliveryNo: deliveriesTable.deliveryNo,
@@ -42,6 +43,7 @@ async function getInvoiceWithItems(id: number) {
   return {
     ...invoice,
     total: parseFloat(invoice.total as any),
+    createdAt: invoice.createdAt ? invoice.createdAt.toISOString() : null,
     deliveryId: invoice.deliveryId,
     deliveryNo: invoice.deliveryNo || null,
     note: invoice.note || null,
@@ -142,6 +144,7 @@ router.get("/", async (req, res) => {
       invoiceNo: invoicesTable.invoiceNo,
       customerName: invoicesTable.customerName,
       date: invoicesTable.date,
+      createdAt: invoicesTable.createdAt,
       total: invoicesTable.total,
       deliveryId: invoicesTable.deliveryId,
       deliveryNo: deliveriesTable.deliveryNo,
@@ -155,6 +158,7 @@ router.get("/", async (req, res) => {
   res.json(invoices.map(i => ({
     ...i,
     total: parseFloat(i.total as any),
+    createdAt: i.createdAt ? i.createdAt.toISOString() : null,
     deliveryNo: i.deliveryNo || null,
     note: i.note || null,
   })));

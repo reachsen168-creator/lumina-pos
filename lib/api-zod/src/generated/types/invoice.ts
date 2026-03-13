@@ -11,6 +11,7 @@ export interface Invoice {
   invoiceNo: string;
   customerName: string;
   date: string;
+  createdAt?: string | null;
   total: number;
   deliveryId?: number | null;
   deliveryNo?: string | null;

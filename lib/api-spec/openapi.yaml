@@ -979,6 +979,9 @@ components:
           type: string
         date:
           type: string
+        createdAt:
+          type: string
+          nullable: true
         total:
           type: number
         deliveryId:
