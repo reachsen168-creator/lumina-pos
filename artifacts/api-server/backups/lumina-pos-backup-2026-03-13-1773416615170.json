@@ -1,6 +1,6 @@
 {
   "version": "2",
-  "exportedAt": "2026-03-13T14:51:10.786Z",
+  "exportedAt": "2026-03-13T15:43:35.169Z",
   "categories": [
     {
       "id": 1,
@@ -85,20 +85,6 @@
   ],
   "invoices": [
     {
-      "id": 34,
-      "invoiceNo": "INV-002",
-      "customerName": "Alice Wong",
-      "date": "2026-03-13",
-      "total": "275.00",
-      "deliveryId": 1,
-      "note": "Transferred 2 រទេះពិការធម្មតា X9 to INV-001 (លីហេង)\nTransfer reversed — 2 រទេះពិការធម្មតា X9 returned from INV-001 (លីហេង)\nTransferred 1 រទេះពិការធម្មតា X9 to INV-003 (Test)\nTransfer reversed — 1 រទេះពិការធម្មតា X9 returned from INV-003 (Test)",
-      "status": "Completed",
-      "packingGroups": null,
-      "createdAt": "2026-03-12T20:48:06.086Z",
-      "deletedAt": null,
-      "deletedBy": null
-    },
-    {
       "id": 41,
       "invoiceNo": "INV-007",
       "customerName": "Test",
@@ -141,18 +127,18 @@
       "deletedBy": "Admin"
     },
     {
-      "id": 40,
-      "invoiceNo": "INV-006",
-      "customerName": "Test",
-      "date": "2026-03-12",
-      "total": "55.00",
-      "deliveryId": null,
-      "note": null,
+      "id": 34,
+      "invoiceNo": "INV-002",
+      "customerName": "Alice Wong",
+      "date": "2026-03-13",
+      "total": "275.00",
+      "deliveryId": 1,
+      "note": "Transferred 2 រទេះពិការធម្មតា X9 to INV-001 (លីហេង)\nTransfer reversed — 2 រទេះពិការធម្មតា X9 returned from INV-001 (លីហេង)\nTransferred 1 រទេះពិការធម្មតា X9 to INV-003 (Test)\nTransfer reversed — 1 រទេះពិការធម្មតា X9 returned from INV-003 (Test)",
       "status": "Completed",
       "packingGroups": null,
-      "createdAt": "2026-03-13T09:23:32.964Z",
-      "deletedAt": null,
-      "deletedBy": null
+      "createdAt": "2026-03-12T20:48:06.086Z",
+      "deletedAt": "2026-03-13T15:09:32.718Z",
+      "deletedBy": "Admin"
     },
     {
       "id": 1,
@@ -165,8 +151,22 @@
       "status": "Completed",
       "packingGroups": null,
       "createdAt": "2026-03-12T20:22:40.264Z",
-      "deletedAt": null,
-      "deletedBy": null
+      "deletedAt": "2026-03-13T15:09:33.318Z",
+      "deletedBy": "Admin"
+    },
+    {
+      "id": 40,
+      "invoiceNo": "INV-006",
+      "customerName": "Test",
+      "date": "2026-03-12",
+      "total": "55.00",
+      "deliveryId": null,
+      "note": null,
+      "status": "Completed",
+      "packingGroups": null,
+      "createdAt": "2026-03-13T09:23:32.964Z",
+      "deletedAt": "2026-03-13T15:09:38.139Z",
+      "deletedBy": "Admin"
     }
   ],
   "invoiceItems": [
@@ -807,6 +807,36 @@
       "description": "Deleted invoice INV-005 (Alice Wong)",
       "date": "2026-03-13",
       "createdAt": "2026-03-13T14:37:23.587Z"
+    },
+    {
+      "id": 81,
+      "user": "Admin",
+      "action": "DELETE",
+      "entity": "invoice",
+      "entityId": 34,
+      "description": "Deleted invoice INV-002 (Alice Wong)",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T15:09:32.731Z"
+    },
+    {
+      "id": 82,
+      "user": "Admin",
+      "action": "DELETE",
+      "entity": "invoice",
+      "entityId": 1,
+      "description": "Deleted invoice INV-001 (លីហេង)",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T15:09:33.319Z"
+    },
+    {
+      "id": 83,
+      "user": "Admin",
+      "action": "DELETE",
+      "entity": "invoice",
+      "entityId": 40,
+      "description": "Deleted invoice INV-006 (Test)",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T15:09:38.140Z"
     }
   ]
 }

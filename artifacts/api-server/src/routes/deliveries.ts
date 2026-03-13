@@ -108,8 +108,15 @@ router.get("/:id/detail", async (req, res) => {
 
   const grandTotal = invoices.reduce((sum, i) => sum + parseFloat(i.total as any), 0);
 
+  // Lazy sync: if all invoices are gone but status wasn't updated yet, fix it now
+  let currentStatus = delivery.status;
+  if (invoices.length === 0 && currentStatus !== "Empty") {
+    await db.update(deliveriesTable).set({ status: "Empty" }).where(eq(deliveriesTable.id, id));
+    currentStatus = "Empty";
+  }
+
   res.json({
-    delivery: { id: delivery.id, deliveryNo: delivery.deliveryNo, date: delivery.date, driver: delivery.driver, status: delivery.status },
+    delivery: { id: delivery.id, deliveryNo: delivery.deliveryNo, date: delivery.date, driver: delivery.driver, status: currentStatus },
     customerGroups: Array.from(customerMap.values()),
     productSummary: Array.from(productTotals.values()),
     grandTotal,
