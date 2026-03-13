@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Wrench, Eye, AlertTriangle, CheckCircle2, Clock,
-  Search, Plus, Trash2, X, RefreshCw, ShoppingBag,
+  Search, Trash2, RefreshCw, ShoppingBag, Flame,
 } from "lucide-react";
 import { PageHeader }  from "@/components/ui/page-header";
 import { Card }        from "@/components/ui/card";
@@ -23,6 +23,7 @@ interface DamageRecord {
   damageQty: number;
   repairedQty: number;
   soldQty: number;
+  disposedQty: number;
   remainingQty: number;
   invoiceNumber: string | null;
   customerName: string | null;
@@ -77,6 +78,15 @@ async function fetchHistory(id: number): Promise<HistoryLog[]> {
   return r.json();
 }
 
+async function disposeRecord(id: number, disposeQty: number, disposeReason: string): Promise<DamageRecord> {
+  const r = await fetch(`${BASE()}/api/damage-records/${id}/dispose`, {
+    method: "PUT", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ disposeQty, disposeReason }),
+  });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.error || "Failed"); }
+  return r.json();
+}
+
 async function deleteRecord(id: number): Promise<void> {
   await fetch(`${BASE()}/api/damage-records/${id}`, { method: "DELETE" });
 }
@@ -89,9 +99,11 @@ function fmtDate(s: string) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { color: string; icon: React.ElementType }> = {
-    "Damaged":           { color: "bg-red-100 text-red-700 border-red-200",    icon: AlertTriangle  },
-    "Partially Repaired":{ color: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: Clock   },
-    "Ready to Sell":     { color: "bg-green-100 text-green-700 border-green-200",  icon: CheckCircle2 },
+    "Damaged":            { color: "bg-red-100 text-red-700 border-red-200",       icon: AlertTriangle  },
+    "Partially Repaired": { color: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: Clock      },
+    "Ready to Sell":      { color: "bg-green-100 text-green-700 border-green-200",  icon: CheckCircle2  },
+    "Partially Disposed": { color: "bg-orange-100 text-orange-700 border-orange-200", icon: Flame      },
+    "Disposed":           { color: "bg-gray-100 text-gray-600 border-gray-300",     icon: Flame        },
   };
   const cfg = map[status] ?? { color: "bg-muted text-muted-foreground border-border", icon: AlertTriangle };
   const Icon = cfg.icon;
@@ -214,6 +226,69 @@ function SellDialog({
   );
 }
 
+// ── Dispose Dialog ────────────────────────────────────────────────────────────
+
+function DisposeDialog({
+  record, onClose, onSuccess,
+}: { record: DamageRecord; onClose: () => void; onSuccess: () => void }) {
+  const { toast } = useToast();
+  const maxDispose = record.remainingQty;
+  const [qty,    setQty]    = useState(1);
+  const [reason, setReason] = useState("");
+
+  const mut = useMutation({
+    mutationFn: () => disposeRecord(record.id, qty, reason),
+    onSuccess: () => { toast({ title: "Disposal recorded" }); onSuccess(); onClose(); },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Flame className="w-4 h-4 text-orange-500" /> Dispose Item
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
+            <div><span className="text-muted-foreground">Item:</span> <strong>{record.itemName}</strong></div>
+            <div><span className="text-muted-foreground">Total Damaged:</span> <strong>{record.damageQty}</strong></div>
+            <div><span className="text-muted-foreground">Already Disposed:</span> <strong>{record.disposedQty}</strong></div>
+            <div><span className="text-muted-foreground">Remaining (can dispose):</span> <strong className="text-orange-600">{maxDispose}</strong></div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Dispose Quantity <span className="text-muted-foreground text-xs">(max {maxDispose})</span></Label>
+            <Input
+              type="number" min={1} max={maxDispose}
+              value={qty} onChange={e => setQty(Math.min(maxDispose, Math.max(1, Number(e.target.value))))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Dispose Reason</Label>
+            <Input placeholder="e.g. Beyond repair, expired…" value={reason} onChange={e => setReason(e.target.value)} />
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            onClick={() => mut.mutate()}
+            disabled={mut.isPending || qty <= 0 || qty > maxDispose}
+            className="gap-2 bg-orange-500 hover:bg-orange-600 text-white"
+          >
+            {mut.isPending
+              ? <><RefreshCw className="w-4 h-4 animate-spin" /> Saving…</>
+              : <><Flame className="w-4 h-4" /> Confirm Dispose</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── History Dialog ────────────────────────────────────────────────────────────
 
 function HistoryDialog({ record, onClose }: { record: DamageRecord; onClose: () => void }) {
@@ -269,6 +344,7 @@ export default function DamageManagement() {
 
   const [repairRecord,  setRepairRecord]  = useState<DamageRecord | null>(null);
   const [sellRecord_,   setSellRecord]    = useState<DamageRecord | null>(null);
+  const [disposeRecord_,setDisposeRecord] = useState<DamageRecord | null>(null);
   const [historyRecord, setHistoryRecord] = useState<DamageRecord | null>(null);
 
   const params: Record<string, string> = {};
@@ -295,7 +371,7 @@ export default function DamageManagement() {
 
   const handleSearch = () => setFilter({ search, status });
 
-  const statusOptions = ["", "Damaged", "Partially Repaired", "Ready to Sell"];
+  const statusOptions = ["", "Damaged", "Partially Repaired", "Ready to Sell", "Partially Disposed", "Disposed"];
 
   return (
     <div className="space-y-5 pb-10">
@@ -331,12 +407,13 @@ export default function DamageManagement() {
 
       {/* Stats */}
       {records.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: "Total Records", value: records.length,                       color: "text-foreground"   },
-            { label: "Damaged",       value: records.filter(r => r.status === "Damaged").length,           color: "text-red-600"     },
-            { label: "Repairing",     value: records.filter(r => r.status === "Partially Repaired").length, color: "text-yellow-600" },
-            { label: "Ready to Sell", value: records.filter(r => r.status === "Ready to Sell").length,     color: "text-green-600"  },
+            { label: "Total",         value: records.length,                                                                             color: "text-foreground"   },
+            { label: "Damaged",       value: records.filter(r => r.status === "Damaged").length,                                         color: "text-red-600"      },
+            { label: "Repairing",     value: records.filter(r => r.status === "Partially Repaired").length,                              color: "text-yellow-600"   },
+            { label: "Ready to Sell", value: records.filter(r => r.status === "Ready to Sell").length,                                   color: "text-green-600"    },
+            { label: "Disposed",      value: records.filter(r => r.status === "Disposed" || r.status === "Partially Disposed").length,   color: "text-orange-600"   },
           ].map(({ label, value, color }) => (
             <Card key={label} className="p-3 text-center">
               <div className={`text-2xl font-bold ${color}`}>{value}</div>
@@ -418,6 +495,15 @@ export default function DamageManagement() {
                               <ShoppingBag className="w-3 h-3" /> Sell
                             </Button>
                           )}
+                          {r.remainingQty > 0 && (
+                            <Button
+                              size="sm" variant="outline"
+                              onClick={() => setDisposeRecord(r)}
+                              className="gap-1 h-7 text-xs px-2 text-orange-700 border-orange-300 hover:bg-orange-50"
+                            >
+                              <Flame className="w-3 h-3" /> Dispose
+                            </Button>
+                          )}
                           <Button
                             size="sm" variant="ghost"
                             onClick={() => setHistoryRecord(r)}
@@ -491,6 +577,12 @@ export default function DamageManagement() {
                       <ShoppingBag className="w-3.5 h-3.5" /> Sell
                     </Button>
                   )}
+                  {r.remainingQty > 0 && (
+                    <Button size="sm" variant="outline" onClick={() => setDisposeRecord(r)}
+                      className="flex-1 gap-1 text-xs text-orange-700 border-orange-300">
+                      <Flame className="w-3.5 h-3.5" /> Dispose
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => setHistoryRecord(r)} className="flex-1 gap-1 text-xs">
                     <Eye className="w-3.5 h-3.5" /> History
                   </Button>
@@ -502,9 +594,10 @@ export default function DamageManagement() {
       )}
 
       {/* Dialogs */}
-      {repairRecord  && <RepairDialog  record={repairRecord}  onClose={() => setRepairRecord(null)}  onSuccess={invalidate} />}
-      {sellRecord_   && <SellDialog    record={sellRecord_}   onClose={() => setSellRecord(null)}    onSuccess={invalidate} />}
-      {historyRecord && <HistoryDialog record={historyRecord} onClose={() => setHistoryRecord(null)} />}
+      {repairRecord   && <RepairDialog   record={repairRecord}   onClose={() => setRepairRecord(null)}   onSuccess={invalidate} />}
+      {sellRecord_    && <SellDialog     record={sellRecord_}    onClose={() => setSellRecord(null)}     onSuccess={invalidate} />}
+      {disposeRecord_ && <DisposeDialog  record={disposeRecord_} onClose={() => setDisposeRecord(null)}  onSuccess={invalidate} />}
+      {historyRecord  && <HistoryDialog  record={historyRecord}  onClose={() => setHistoryRecord(null)} />}
     </div>
   );
 }

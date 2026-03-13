@@ -5,10 +5,13 @@ import { logHistory } from "./history.js";
 
 const router = Router();
 
-function computeStatus(repairedQty: number, damageQty: number): string {
-  if (repairedQty <= 0) return "Damaged";
-  if (repairedQty >= damageQty) return "Ready to Sell";
-  return "Partially Repaired";
+function computeStatus(repairedQty: number, damageQty: number, disposedQty: number): string {
+  const remaining = damageQty - repairedQty - disposedQty;
+  if (disposedQty > 0 && remaining <= 0) return "Disposed";
+  if (disposedQty > 0 && remaining > 0)  return "Partially Disposed";
+  if (repairedQty >= damageQty)          return "Ready to Sell";
+  if (repairedQty > 0)                   return "Partially Repaired";
+  return "Damaged";
 }
 
 /* ── List ────────────────────────────────────────────────────────────────── */
@@ -27,9 +30,10 @@ router.get("/", async (req, res) => {
     const rows = await query.orderBy(damageRecordsTable.createdAt);
     res.json(rows.map(r => ({
       ...r,
-      damageQty:   parseFloat(r.damageQty as any),
+      damageQty:   parseFloat(r.damageQty   as any),
       repairedQty: parseFloat(r.repairedQty as any),
-      soldQty:     parseFloat(r.soldQty as any),
+      soldQty:     parseFloat(r.soldQty     as any),
+      disposedQty: parseFloat((r as any).disposedQty ?? "0"),
       remainingQty:parseFloat(r.remainingQty as any),
     })));
   } catch (e) { console.error(e); res.status(500).json({ error: "Failed to fetch damage records" }); }
@@ -122,9 +126,10 @@ router.put("/:id/repair", async (req, res) => {
       return res.status(400).json({ error: `Can only repair up to ${maxRepair} more units` });
     }
 
+    const disposedQty  = parseFloat((existing as any).disposedQty ?? "0");
     const newRepaired  = currentRep + repairQty;
-    const newRemaining = damageQty - newRepaired;
-    const newStatus    = computeStatus(newRepaired, damageQty);
+    const newRemaining = damageQty - newRepaired - disposedQty;
+    const newStatus    = computeStatus(newRepaired, damageQty, disposedQty);
 
     const [updated] = await db.update(damageRecordsTable).set({
       repairedQty:  newRepaired.toString(),
@@ -133,7 +138,7 @@ router.put("/:id/repair", async (req, res) => {
     }).where(eq(damageRecordsTable.id, id)).returning();
 
     await logHistory("UPDATE", "damage_record", id, `Repaired ${repairQty} units of ${existing.itemName}`);
-    res.json({ ...updated, damageQty: parseFloat(updated.damageQty as any), repairedQty: newRepaired, soldQty: parseFloat(updated.soldQty as any), remainingQty: newRemaining });
+    res.json({ ...updated, damageQty: parseFloat(updated.damageQty as any), repairedQty: newRepaired, soldQty: parseFloat(updated.soldQty as any), disposedQty, remainingQty: newRemaining });
   } catch (e) { console.error(e); res.status(500).json({ error: "Failed to repair" }); }
 });
 
@@ -169,6 +174,48 @@ router.put("/:id/sell", async (req, res) => {
     await logHistory("UPDATE", "damage_record", id, `Sold ${sellQty} repaired ${existing.itemName} to ${soldTo}`);
     res.json({ ...updated, damageQty: parseFloat(updated.damageQty as any), repairedQty: parseFloat(updated.repairedQty as any), soldQty: newSold, remainingQty: newRemaining });
   } catch (e) { console.error(e); res.status(500).json({ error: "Failed to record sale" }); }
+});
+
+/* ── Dispose damaged items ───────────────────────────────────────────────── */
+router.put("/:id/dispose", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { disposeQty, disposeReason } = req.body;
+    if (!disposeQty || disposeQty <= 0) return res.status(400).json({ error: "disposeQty must be > 0" });
+
+    const [existing] = await db.select().from(damageRecordsTable).where(eq(damageRecordsTable.id, id));
+    if (!existing) return res.status(404).json({ error: "Not found" });
+
+    const damageQty    = parseFloat(existing.damageQty    as any);
+    const repairedQty  = parseFloat(existing.repairedQty  as any);
+    const currentDisp  = parseFloat((existing as any).disposedQty ?? "0");
+    const maxDispose   = parseFloat(existing.remainingQty as any);
+
+    if (disposeQty > maxDispose) {
+      return res.status(400).json({ error: `Can only dispose up to ${maxDispose} remaining units` });
+    }
+
+    const newDisposed  = currentDisp + disposeQty;
+    const newRemaining = damageQty - repairedQty - newDisposed;
+    const newStatus    = computeStatus(repairedQty, damageQty, newDisposed);
+
+    const [updated] = await db.update(damageRecordsTable).set({
+      disposedQty:  newDisposed.toString(),
+      remainingQty: Math.max(0, newRemaining).toString(),
+      status:       newStatus,
+    } as any).where(eq(damageRecordsTable.id, id)).returning();
+
+    const reason = disposeReason ? ` — reason: ${disposeReason}` : "";
+    await logHistory("UPDATE", "damage_record", id, `Disposed ${disposeQty} units of ${existing.itemName}${reason}`);
+    res.json({
+      ...updated,
+      damageQty,
+      repairedQty,
+      soldQty:     parseFloat(updated.soldQty as any),
+      disposedQty: newDisposed,
+      remainingQty: Math.max(0, newRemaining),
+    });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Failed to dispose" }); }
 });
 
 /* ── View History for a record ───────────────────────────────────────────── */

@@ -9,6 +9,7 @@ export const damageRecordsTable = pgTable("damage_records", {
   damageQty:     numeric("damage_qty", { precision: 10, scale: 2 }).notNull(),
   repairedQty:   numeric("repaired_qty", { precision: 10, scale: 2 }).notNull().default("0"),
   soldQty:       numeric("sold_qty", { precision: 10, scale: 2 }).notNull().default("0"),
+  disposedQty:   numeric("disposed_qty",  { precision: 10, scale: 2 }).notNull().default("0"),
   remainingQty:  numeric("remaining_qty", { precision: 10, scale: 2 }).notNull(),
   invoiceNumber: text("invoice_number"),
   customerName:  text("customer_name"),
