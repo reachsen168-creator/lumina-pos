@@ -14,7 +14,7 @@ import { DateShortcuts } from "@/components/ui/date-shortcuts";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus, Search, FileText, Trash2, Edit, Truck,
-  ChevronDown, ChevronUp, Clipboard, FileDown, Share2
+  ChevronDown, ChevronUp, Clipboard, FileDown, Share2, Package
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -395,6 +395,14 @@ export default function Sales() {
                       >
                         <Share2 className="w-3.5 h-3.5 mr-1" /> Share Image
                       </Button>
+                      <Link href={`/sales/${inv.id}/packing`}>
+                        <Button
+                          variant="ghost" size="sm"
+                          className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
+                        >
+                          <Package className="w-3.5 h-3.5 mr-1" /> Packing
+                        </Button>
+                      </Link>
 
                       <div className="ml-auto flex gap-1">
                         <Link href={`/sales/${inv.id}`}>
