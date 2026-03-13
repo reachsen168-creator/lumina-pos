@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit2, Trash2, Truck, FileText, Download, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Plus, Edit2, Trash2, Truck, FileText, Download, ArrowLeft, Eye, EyeOff, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
@@ -168,6 +168,15 @@ export default function Deliveries() {
 function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
   const { data, isLoading } = useGetDeliveryDetail(id, { query: { enabled: !!id } } as any);
   const [showPrice, setShowPrice] = useState(true);
+  const [expandedCustomers, setExpandedCustomers] = useState<Set<number>>(new Set());
+
+  const toggleCustomer = (idx: number) => {
+    setExpandedCustomers(prev => {
+      const next = new Set(prev);
+      next.has(idx) ? next.delete(idx) : next.add(idx);
+      return next;
+    });
+  };
 
   if (isLoading) return <div className="py-24 text-center text-muted-foreground">Loading details...</div>;
   if (!data) return <div className="py-24 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100">Failed to load delivery details.</div>;
@@ -230,32 +239,50 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
         <div className="space-y-6">
           <h2 className="text-xl font-display font-bold flex items-center gap-2"><Truck className="w-5 h-5 text-accent" /> Customer Invoices</h2>
           {customerGroups.length === 0 && <p className="text-muted-foreground italic">No invoices attached to this delivery.</p>}
-          {customerGroups.map((cg: any, i: number) => (
-            <Card key={i} className="shadow-sm border-none ring-1 ring-border overflow-hidden">
-              <div className="p-4 border-b border-border bg-muted/20 font-bold text-foreground">{cg.customerName}</div>
-              <div className="p-4 space-y-4">
-                {cg.invoices.map((inv: any, j: number) => (
-                  <div key={j} className="text-sm">
-                    <div className="text-accent text-xs font-bold mb-2 bg-accent/10 inline-block px-2 py-1 rounded">Inv: {inv.invoiceNo}</div>
-                    <ul className="space-y-2 mt-2">
-                      {inv.items.map((item: any, k: number) => (
-                         <li key={k} className="flex justify-between items-center bg-muted/10 p-2 rounded-lg">
-                           <span className="font-medium text-foreground">{item.productName} <span className="text-muted-foreground font-normal ml-1">{showPrice ? `= ${item.qty} x $${item.price.toFixed(2)}` : `= ${item.qty}`}</span></span>
-                           {showPrice && <span className="font-bold">${item.subtotal.toFixed(2)}</span>}
-                         </li>
-                      ))}
-                    </ul>
+          {customerGroups.map((cg: any, i: number) => {
+            const isOpen = expandedCustomers.has(i);
+            return (
+              <Card key={i} className="shadow-sm border-none ring-1 ring-border overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggleCustomer(i)}
+                  className="w-full flex items-center justify-between p-4 border-b border-border bg-muted/20 font-bold text-foreground hover:bg-muted/40 transition-colors text-left"
+                >
+                  <span>{cg.customerName}</span>
+                  <ChevronDown
+                    className="w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200"
+                    style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                  />
+                </button>
+                <div
+                  className="overflow-hidden transition-all duration-200"
+                  style={{ maxHeight: isOpen ? "2000px" : "0px", opacity: isOpen ? 1 : 0 }}
+                >
+                  <div className="p-4 space-y-4">
+                    {cg.invoices.map((inv: any, j: number) => (
+                      <div key={j} className="text-sm">
+                        <div className="text-accent text-xs font-bold mb-2 bg-accent/10 inline-block px-2 py-1 rounded">Inv: {inv.invoiceNo}</div>
+                        <ul className="space-y-2 mt-2">
+                          {inv.items.map((item: any, k: number) => (
+                            <li key={k} className="flex justify-between items-center bg-muted/10 p-2 rounded-lg">
+                              <span className="font-medium text-foreground">{item.productName} <span className="text-muted-foreground font-normal ml-1">{showPrice ? `= ${item.qty} x $${item.price.toFixed(2)}` : `= ${item.qty}`}</span></span>
+                              {showPrice && <span className="font-bold">${item.subtotal.toFixed(2)}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                    {showPrice && (
+                      <div className="pt-4 mt-2 border-t border-border flex justify-between font-bold text-lg">
+                        <span>Total</span>
+                        <span className="text-primary">${(cg.customerTotal ?? 0).toFixed(2)}</span>
+                      </div>
+                    )}
                   </div>
-                ))}
-                {showPrice && (
-                  <div className="pt-4 mt-2 border-t border-border flex justify-between font-bold text-lg">
-                    <span>Total</span>
-                    <span className="text-primary">${(cg.customerTotal ?? 0).toFixed(2)}</span>
-                  </div>
-                )}
-              </div>
-            </Card>
-          ))}
+                </div>
+              </Card>
+            );
+          })}
         </div>
 
         <div className="space-y-6">
