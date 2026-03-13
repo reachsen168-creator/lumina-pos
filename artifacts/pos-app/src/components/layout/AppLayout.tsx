@@ -20,10 +20,10 @@ const navItems = [
   { href: "/transfers", label: "Transfers", icon: ArrowRightLeft },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/delivery-report", label: "Delivery Report", icon: ClipboardList },
-  { href: "/sales-report",    label: "Sales Report",    icon: TrendingUp },
-  { href: "/history", label: "History Logs", icon: History },
+  { href: "/sales-report", label: "Sales Report", icon: TrendingUp },
   { href: "/trash", label: "Trash / Restore", icon: Trash2 },
-  { href: "/settings", label: "Backup & Restore", icon: DatabaseBackup },
+  { href: "/settings", label: "System Backup", icon: DatabaseBackup },
+  { href: "/history", label: "Audit Logs", icon: History },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
