@@ -190,22 +190,26 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
   const { delivery, customerGroups = [], productSummary = [], grandTotal = 0 } = data as any;
 
   const buildTxt = (mode: 'price' | 'no-price') => {
-    let txt = `Delivery: ${delivery.deliveryNo}\n`;
+    let txt = `🚚 Delivery ${delivery.deliveryNo}\n`;
     if (delivery.driver) txt += `Driver: ${delivery.driver}\n`;
-    txt += `Date: ${delivery.date.split('T')[0]}\n\n`;
+    txt += '\n';
 
     if (mode === 'price') {
+      let grand = 0;
       customerGroups.forEach((cg: any) => {
         cg.invoices.forEach((inv: any) => {
-          txt += `Inv: ${inv.invoiceNo}\n\n`;
+          txt += `Inv: ${inv.invoiceNo}\n`;
+          let invTotal = 0;
           inv.items.forEach((item: any) => {
             const lineTotal = Number(item.qty) * Number(item.price);
-            txt += `${item.productName} = ${item.qty} x $${Number(item.price).toFixed(2)}        $${lineTotal.toFixed(2)}\n`;
+            invTotal += lineTotal;
+            txt += `${item.productName} = ${item.qty} x $${Number(item.price)} = $${lineTotal}\n`;
           });
-          txt += `\nTotal: $${Number(inv.total).toFixed(2)}\n\n`;
+          txt += `Total: $${invTotal}\n\n`;
+          grand += invTotal;
         });
       });
-      txt += `Grand Total: $${Number(grandTotal).toFixed(2)}\n`;
+      txt += `Grand Total: $${grand}`;
     } else {
       let totalItems = 0;
       customerGroups.forEach((cg: any) => {
