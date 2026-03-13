@@ -58,7 +58,15 @@ export default function SaleForm() {
       setDate(existingInvoice.date.split("T")[0]);
       setNote(existingInvoice.note || "");
       setDeliveryId(existingInvoice.deliveryId ? existingInvoice.deliveryId.toString() : "none");
-      setItems(existingInvoice.items.map((i) => ({ ...i, tempId: Math.random() })));
+      setItems(
+        existingInvoice.items.map((i) => ({
+          tempId: Math.random(),
+          productId: i.productId,
+          productName: i.productName,
+          price: parseFloat(String(i.price)) || 0,
+          qty: parseFloat(String(i.qty)) || 1,
+        }))
+      );
     }
   }, [existingInvoice, isEdit]);
 
@@ -120,14 +128,24 @@ export default function SaleForm() {
 
     setItems((prev) => [
       ...prev,
-      { tempId: Math.random(), productId: product.id, productName: product.name, price: defaultPrice, qty: 1 },
+      {
+        tempId: Math.random(),
+        productId: product.id,
+        productName: product.name,
+        price: parseFloat(String(defaultPrice)) || 0,
+        qty: 1,
+      },
     ]);
     setProdSearch("");
   };
 
-  const updateItem = (index: number, field: string, value: number) => {
+  const updateItem = (index: number, field: "price" | "qty", raw: string | number) => {
+    const value = parseFloat(String(raw));
     const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
+    newItems[index] = {
+      ...newItems[index],
+      [field]: isNaN(value) ? (field === "qty" ? 1 : 0) : value,
+    };
     setItems(newItems);
   };
 
@@ -135,7 +153,13 @@ export default function SaleForm() {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const grandTotal = items.reduce((acc, item) => acc + item.price * item.qty, 0);
+  const itemSubtotal = (price: number, qty: number) => {
+    const p = parseFloat(String(price)) || 0;
+    const q = parseFloat(String(qty)) || 0;
+    return p * q;
+  };
+
+  const grandTotal = items.reduce((acc, item) => acc + itemSubtotal(item.price, item.qty), 0);
 
   const handleSave = async () => {
     if (!customerName.trim() || items.length === 0) {
@@ -357,7 +381,7 @@ export default function SaleForm() {
                             type="number"
                             step="0.01"
                             value={item.price}
-                            onChange={(e) => updateItem(idx, "price", Number(e.target.value))}
+                            onChange={(e) => updateItem(idx, "price", e.target.value)}
                             className="w-24 h-9 pl-6 rounded-lg"
                           />
                         </div>
@@ -375,7 +399,7 @@ export default function SaleForm() {
                           <input
                             type="number"
                             value={item.qty}
-                            onChange={(e) => updateItem(idx, "qty", Number(e.target.value) || 1)}
+                            onChange={(e) => updateItem(idx, "qty", e.target.value)}
                             className="w-12 h-9 text-center bg-transparent border-none focus:ring-0 text-sm font-bold"
                           />
                           <button
@@ -393,7 +417,7 @@ export default function SaleForm() {
                     <div className="text-right sm:mr-4">
                       <p className="text-xs text-muted-foreground mb-1">Subtotal</p>
                       <p className="font-display font-bold text-lg text-foreground">
-                        ${(item.price * item.qty).toFixed(2)}
+                        ${itemSubtotal(item.price, item.qty).toFixed(2)}
                       </p>
                     </div>
                     <Button
