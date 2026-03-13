@@ -47,7 +47,7 @@ router.get("/:id/detail", async (req, res) => {
   const invoices = await db
     .select({ id: invoicesTable.id, invoiceNo: invoicesTable.invoiceNo, customerName: invoicesTable.customerName, date: invoicesTable.date, total: invoicesTable.total, note: invoicesTable.note })
     .from(invoicesTable)
-    .where(eq(invoicesTable.deliveryId, id))
+    .where(and(eq(invoicesTable.deliveryId, id), isNull(invoicesTable.deletedAt)))
     .orderBy(invoicesTable.customerName);
 
   // Load items for all invoices
