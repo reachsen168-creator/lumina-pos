@@ -315,4 +315,71 @@ router.get("/sales-full", async (req, res) => {
   });
 });
 
+/* ── Customer Receipt Report ──────────────────────────────────────────── */
+router.get("/customer-receipt", async (req, res) => {
+  const { customer = "", dateFrom, dateTo } = req.query as Record<string, string>;
+  const from = dateFrom || new Date().toISOString().split("T")[0];
+  const to   = dateTo   || new Date().toISOString().split("T")[0];
+
+  if (!customer.trim()) {
+    return res.status(400).json({ error: "customer is required" });
+  }
+
+  const invoices = await db
+    .select({
+      id:   invoicesTable.id,
+      date: invoicesTable.date,
+    })
+    .from(invoicesTable)
+    .where(and(
+      gte(invoicesTable.date, from),
+      lte(invoicesTable.date, to),
+      ilike(invoicesTable.customerName, `%${customer.trim()}%`),
+    ))
+    .orderBy(invoicesTable.date);
+
+  // Group by date; within each date aggregate items by productName+price
+  const dateMap = new Map<string, Map<string, { productName: string; price: number; qty: number }>>();
+
+  for (const inv of invoices) {
+    const items = await db
+      .select({
+        productName: productsTable.name,
+        qty:         invoiceItemsTable.qty,
+        price:       invoiceItemsTable.price,
+      })
+      .from(invoiceItemsTable)
+      .leftJoin(productsTable, eq(invoiceItemsTable.productId, productsTable.id))
+      .where(eq(invoiceItemsTable.invoiceId, inv.id));
+
+    if (!dateMap.has(inv.date)) dateMap.set(inv.date, new Map());
+    const dayItems = dateMap.get(inv.date)!;
+
+    for (const it of items) {
+      const name  = it.productName || "Unknown";
+      const price = parseFloat(it.price as any);
+      const qty   = parseFloat(it.qty   as any);
+      const key   = `${name}__${price}`;
+      const existing = dayItems.get(key);
+      if (existing) existing.qty += qty;
+      else dayItems.set(key, { productName: name, price, qty });
+    }
+  }
+
+  const dateGroups = [...dateMap.entries()].map(([date, itemMap]) => {
+    const items = [...itemMap.values()].map(it => ({
+      productName: it.productName,
+      qty:         it.qty,
+      price:       it.price,
+      total:       it.qty * it.price,
+    }));
+    const dayTotal = items.reduce((s, i) => s + i.total, 0);
+    return { date, items, dayTotal };
+  }).sort((a, b) => a.date.localeCompare(b.date));
+
+  const totalAmount = dateGroups.reduce((s, g) => s + g.dayTotal, 0);
+
+  res.json({ customer: customer.trim(), dateFrom: from, dateTo: to, dateGroups, totalAmount });
+});
+
 export default router;

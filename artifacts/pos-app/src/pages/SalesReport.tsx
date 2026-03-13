@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   ChevronRight, ChevronDown, Copy, Check, Image as ImageIcon,
-  FileText, DollarSign, Package, Search, Users, ShoppingCart, ReceiptText,
+  FileText, DollarSign, Package, Search, Users, ShoppingCart,
+  ReceiptText, X,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card }      from "@/components/ui/card";
@@ -30,6 +31,11 @@ interface SalesReportData {
   itemSummary: ItemSumEntry[];
   customerSummary: CustSumEntry[];
 }
+
+interface ReceiptItem  { productName: string; qty: number; price: number; total: number }
+interface ReceiptGroup { date: string; items: ReceiptItem[]; dayTotal: number }
+interface ReceiptData  { customer: string; dateFrom: string; dateTo: string; dateGroups: ReceiptGroup[]; totalAmount: number }
+
 interface CustomerRow { id: number; name: string }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -54,13 +60,20 @@ async function fetchSalesReport(dateFrom: string, dateTo: string, customer: stri
   return r.json();
 }
 
+async function fetchCustomerReceipt(customer: string, dateFrom: string, dateTo: string): Promise<ReceiptData> {
+  const p = new URLSearchParams({ customer, dateFrom, dateTo });
+  const r = await fetch(`${BASE()}/api/reports/customer-receipt?${p}`);
+  if (!r.ok) throw new Error("Failed to fetch customer receipt");
+  return r.json();
+}
+
 async function fetchCustomers(): Promise<CustomerRow[]> {
   const r = await fetch(`${BASE()}/api/customers`);
   if (!r.ok) return [];
   return r.json();
 }
 
-// ── Copy text ─────────────────────────────────────────────────────────────────
+// ── Copy text — Sales Report ──────────────────────────────────────────────────
 
 function buildCopyText(d: SalesReportData): string {
   const lines: string[] = [];
@@ -100,6 +113,29 @@ function buildCopyText(d: SalesReportData): string {
     }
   }
 
+  return lines.join("\n");
+}
+
+// ── Copy text — Receipt ───────────────────────────────────────────────────────
+
+function buildReceiptCopyText(d: ReceiptData): string {
+  const lines: string[] = [];
+  lines.push(`Customer : ${d.customer}`);
+  lines.push(`From : ${fmtDate(d.dateFrom)}  To : ${fmtDate(d.dateTo)}`);
+
+  for (const g of d.dateGroups) {
+    lines.push("");
+    lines.push(fmtDate(g.date));
+    lines.push("--------------------------------");
+    for (const it of g.items) {
+      const name  = it.productName.padEnd(16, " ");
+      lines.push(`${name}${it.qty} × ${fmt(it.price)} = ${fmt(it.total)}`);
+    }
+    lines.push("--------------------------------");
+  }
+
+  lines.push("");
+  lines.push(`TOTAL ALL : ${fmt(d.totalAmount)}`);
   return lines.join("\n");
 }
 
@@ -175,9 +211,9 @@ function BillRow({ inv }: { inv: SalesInvoice }) {
   );
 }
 
-// ── PrintView ─────────────────────────────────────────────────────────────────
+// ── Sales Report PrintView ────────────────────────────────────────────────────
 
-function PrintView({ data, printRef }: { data: SalesReportData; printRef: React.RefObject<HTMLDivElement | null> }) {
+function SalesPrintView({ data, printRef }: { data: SalesReportData; printRef: React.RefObject<HTMLDivElement | null> }) {
   const FONT = "'Noto Sans Khmer', Arial, sans-serif";
   const th = { background: "#f0f0f0", fontWeight: 700, padding: "6px 10px", fontSize: 12, textAlign: "left" as const, border: "1px solid #ddd" };
   const td = { padding: "5px 10px", fontSize: 12, border: "1px solid #ddd" };
@@ -190,8 +226,6 @@ function PrintView({ data, printRef }: { data: SalesReportData; printRef: React.
         {data.customer && <span>  &nbsp;  Customer : {data.customer}</span>}
       </div>
       <div style={{ borderTop: "2px solid #1a1a1a", margin: "14px 0" }} />
-
-      {/* Summary */}
       <div style={{ fontWeight: 700, marginBottom: 8 }}>SALES SUMMARY</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         {[
@@ -206,8 +240,6 @@ function PrintView({ data, printRef }: { data: SalesReportData; printRef: React.
           </div>
         ))}
       </div>
-
-      {/* Bills */}
       {data.invoices.length > 0 && (
         <>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>BILLS</div>
@@ -230,24 +262,17 @@ function PrintView({ data, printRef }: { data: SalesReportData; printRef: React.
           <div style={{ borderTop: "1px solid #ccc", marginBottom: 16 }} />
         </>
       )}
-
-      {/* Item Summary */}
       {data.itemSummary.length > 0 && (
         <>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>ITEM SUMMARY</div>
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16 }}>
             <thead><tr><th style={th}>Item</th><th style={{ ...th, textAlign: "right" }}>Qty Sold</th></tr></thead>
             <tbody>{data.itemSummary.map((s, i) => (
-              <tr key={i}>
-                <td style={td}>{s.productName}</td>
-                <td style={{ ...td, textAlign: "right" }}>{s.totalQty}</td>
-              </tr>
+              <tr key={i}><td style={td}>{s.productName}</td><td style={{ ...td, textAlign: "right" }}>{s.totalQty}</td></tr>
             ))}</tbody>
           </table>
         </>
       )}
-
-      {/* Customer Summary */}
       {data.customerSummary.length > 0 && (
         <>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>CUSTOMER SUMMARY</div>
@@ -271,7 +296,7 @@ function PrintView({ data, printRef }: { data: SalesReportData; printRef: React.
   );
 }
 
-// ── Results ───────────────────────────────────────────────────────────────────
+// ── Sales Report Results ──────────────────────────────────────────────────────
 
 function ReportResults({ data }: { data: SalesReportData }) {
   const printRef  = useRef<HTMLDivElement>(null);
@@ -306,7 +331,6 @@ function ReportResults({ data }: { data: SalesReportData }) {
 
   return (
     <>
-      {/* Action buttons */}
       <div className="flex flex-col sm:flex-row gap-[10px]">
         <Button variant="outline" onClick={handleExport} disabled={exporting}
           className="flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium">
@@ -316,20 +340,17 @@ function ReportResults({ data }: { data: SalesReportData }) {
         </Button>
         <Button variant={copied ? "default" : "outline"} onClick={handleCopy}
           className={`flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium transition-all ${copied ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : ""}`}>
-          {copied
-            ? <><Check className="w-4 h-4" /> Copied!</>
-            : <><Copy className="w-4 h-4" /> Copy Text</>}
+          {copied ? <><Check className="w-4 h-4" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy Text</>}
         </Button>
       </div>
 
-      {/* ▼ Sales Summary */}
       <CollapsibleSection title="Sales Summary" icon={DollarSign} defaultOpen>
         <div className="p-4 grid grid-cols-2 gap-3">
           {[
-            { label: "Total Bills",        value: data.totalBills,      icon: FileText    },
-            { label: "Total Customers",    value: data.totalCustomers,  icon: Users       },
-            { label: "Total Items Sold",   value: data.totalItemsSold,  icon: ShoppingCart},
-            { label: "Total Sales Amount", value: fmt(data.totalAmount),icon: DollarSign  },
+            { label: "Total Bills",        value: data.totalBills,      icon: FileText     },
+            { label: "Total Customers",    value: data.totalCustomers,  icon: Users        },
+            { label: "Total Items Sold",   value: data.totalItemsSold,  icon: ShoppingCart },
+            { label: "Total Sales Amount", value: fmt(data.totalAmount),icon: DollarSign   },
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="rounded-lg bg-accent/10 border border-accent/20 px-3 py-3 text-center">
               <div className="text-xl font-bold text-accent">{value}</div>
@@ -341,88 +362,322 @@ function ReportResults({ data }: { data: SalesReportData }) {
         </div>
       </CollapsibleSection>
 
-      {/* ▼ Bills List */}
       <CollapsibleSection title="Bills List" icon={ReceiptText} count={data.invoices.length} defaultOpen>
-        {data.invoices.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic text-center py-6">No bills found.</p>
-        ) : (
-          <div>
-            {data.invoices.map(inv => <BillRow key={inv.invoiceNo} inv={inv} />)}
-          </div>
-        )}
+        {data.invoices.length === 0
+          ? <p className="text-sm text-muted-foreground italic text-center py-6">No bills found.</p>
+          : <div>{data.invoices.map(inv => <BillRow key={inv.invoiceNo} inv={inv} />)}</div>
+        }
       </CollapsibleSection>
 
-      {/* ▼ Item Sales Summary */}
       <CollapsibleSection title="Item Sales Summary" icon={Package} count={data.itemSummary.length} defaultOpen>
-        {data.itemSummary.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic text-center py-6">No items.</p>
-        ) : (
-          <div className="p-4">
-            <div className="rounded-lg border border-border overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted/50 border-b border-border">
-                    <th className="text-left px-4 py-2.5 font-semibold text-foreground">Item</th>
-                    <th className="text-right px-4 py-2.5 font-semibold text-foreground">Qty Sold</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.itemSummary.map((s, i) => (
-                    <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/20">
-                      <td className="px-4 py-2.5 text-foreground">{s.productName}</td>
-                      <td className="px-4 py-2.5 text-right font-semibold text-accent tabular-nums">{s.totalQty}</td>
+        {data.itemSummary.length === 0
+          ? <p className="text-sm text-muted-foreground italic text-center py-6">No items.</p>
+          : (
+            <div className="p-4">
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/50 border-b border-border">
+                      <th className="text-left px-4 py-2.5 font-semibold text-foreground">Item</th>
+                      <th className="text-right px-4 py-2.5 font-semibold text-foreground">Qty Sold</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {data.itemSummary.map((s, i) => (
+                      <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/20">
+                        <td className="px-4 py-2.5 text-foreground">{s.productName}</td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-accent tabular-nums">{s.totalQty}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          )
+        }
       </CollapsibleSection>
 
-      {/* ▼ Customer Sales Summary */}
       <CollapsibleSection title="Customer Sales Summary" icon={Users} count={data.customerSummary.length} defaultOpen>
-        {data.customerSummary.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic text-center py-6">No customers.</p>
-        ) : (
-          <div className="p-4">
-            <div className="rounded-lg border border-border overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted/50 border-b border-border">
-                    <th className="text-left px-4 py-2.5 font-semibold text-foreground">Customer</th>
-                    <th className="text-center px-4 py-2.5 font-semibold text-foreground">Bills</th>
-                    <th className="text-right px-4 py-2.5 font-semibold text-foreground">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.customerSummary.map((c, i) => (
-                    <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/20">
-                      <td className="px-4 py-2.5 text-foreground font-medium">{c.customerName}</td>
-                      <td className="px-4 py-2.5 text-center tabular-nums">{c.totalBills}</td>
-                      <td className="px-4 py-2.5 text-right font-semibold text-accent tabular-nums">{fmt(c.totalAmount)}</td>
+        {data.customerSummary.length === 0
+          ? <p className="text-sm text-muted-foreground italic text-center py-6">No customers.</p>
+          : (
+            <div className="p-4">
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/50 border-b border-border">
+                      <th className="text-left px-4 py-2.5 font-semibold text-foreground">Customer</th>
+                      <th className="text-center px-4 py-2.5 font-semibold text-foreground">Bills</th>
+                      <th className="text-right px-4 py-2.5 font-semibold text-foreground">Total</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {data.customerSummary.map((c, i) => (
+                      <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/20">
+                        <td className="px-4 py-2.5 text-foreground font-medium">{c.customerName}</td>
+                        <td className="px-4 py-2.5 text-center tabular-nums">{c.totalBills}</td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-accent tabular-nums">{fmt(c.totalAmount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          )
+        }
       </CollapsibleSection>
 
-      {/* Hidden print view */}
-      <PrintView data={data} printRef={printRef} />
+      <SalesPrintView data={data} printRef={printRef} />
     </>
+  );
+}
+
+// ── Receipt PrintView ─────────────────────────────────────────────────────────
+
+function ReceiptPrintView({ data, printRef }: { data: ReceiptData; printRef: React.RefObject<HTMLDivElement | null> }) {
+  const FONT = "'Noto Sans Khmer', 'Courier New', monospace";
+  const W = 400;
+  return (
+    <div ref={printRef} style={{ position: "absolute", left: -9999, top: 0, zIndex: -1, width: W, backgroundColor: "#fff", fontFamily: FONT, fontSize: 13, color: "#1a1a1a", padding: "32px 36px 40px", boxSizing: "border-box" }}>
+      <div style={{ textAlign: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: 1, marginBottom: 6 }}>CUSTOMER RECEIPT</div>
+        <div style={{ fontSize: 12, color: "#444", lineHeight: 1.8 }}>
+          <div>Customer : {data.customer}</div>
+          <div>From : {fmtDate(data.dateFrom)}  —  To : {fmtDate(data.dateTo)}</div>
+        </div>
+      </div>
+      <div style={{ borderTop: "2px solid #1a1a1a", marginBottom: 16 }} />
+
+      {data.dateGroups.map((g, gi) => (
+        <div key={gi} style={{ marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{fmtDate(g.date)}</div>
+          {g.items.map((it, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+              <span style={{ flex: 1 }}>{it.productName}</span>
+              <span style={{ color: "#555", whiteSpace: "nowrap" }}>
+                {it.qty} × {fmt(it.price)} = {fmt(it.total)}
+              </span>
+            </div>
+          ))}
+          <div style={{ borderBottom: "1px dashed #aaa", marginTop: 8 }} />
+        </div>
+      ))}
+
+      <div style={{ borderTop: "2px solid #1a1a1a", marginTop: 8, paddingTop: 12, textAlign: "right", fontSize: 15, fontWeight: 800 }}>
+        TOTAL ALL : {fmt(data.totalAmount)}
+      </div>
+    </div>
+  );
+}
+
+// ── Customer Receipt Report section ──────────────────────────────────────────
+
+function CustomerReceiptReport({ customers, onClose }: { customers: CustomerRow[]; onClose: () => void }) {
+  const [rcCustomer, setRcCustomer] = useState("__none__");
+  const [rcFrom,     setRcFrom]     = useState(monthStart);
+  const [rcTo,       setRcTo]       = useState(today);
+  const [rcQuery,    setRcQuery]    = useState<{ customer: string; dateFrom: string; dateTo: string } | null>(null);
+
+  const printRef  = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
+  const [copied,    setCopied]    = useState(false);
+
+  const { data, isLoading, isError } = useQuery<ReceiptData>({
+    queryKey: ["customer-receipt", rcQuery?.customer, rcQuery?.dateFrom, rcQuery?.dateTo],
+    queryFn:  () => fetchCustomerReceipt(rcQuery!.customer, rcQuery!.dateFrom, rcQuery!.dateTo),
+    enabled:  !!rcQuery,
+  });
+
+  const handleGenerate = () => {
+    if (rcCustomer === "__none__" || !rcCustomer) return;
+    setRcQuery({ customer: rcCustomer, dateFrom: rcFrom, dateTo: rcTo });
+  };
+
+  const handleExport = useCallback(async () => {
+    if (!printRef.current) return;
+    setExporting(true);
+    try {
+      await document.fonts.ready;
+      const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, backgroundColor: "#ffffff" });
+      const link = document.createElement("a");
+      link.download = `receipt-${rcQuery?.customer ?? "customer"}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } finally { setExporting(false); }
+  }, [rcQuery?.customer]);
+
+  const handleCopy = useCallback(async () => {
+    if (!data) return;
+    const text = buildReceiptCopyText(data);
+    try { await navigator.clipboard.writeText(text); }
+    catch {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.cssText = "position:fixed;opacity:0";
+      document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [data]);
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ReceiptText className="w-5 h-5 text-accent" />
+          <h2 className="text-base font-bold">Customer Receipt Report</h2>
+        </div>
+        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Filter */}
+      <Card className="p-4 border-accent/30 bg-accent/5">
+        <div className="flex flex-col gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Customer <span className="text-red-500">*</span></Label>
+            <Select value={rcCustomer} onValueChange={setRcCustomer}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a customer…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__" disabled>Select a customer…</SelectItem>
+                {customers.map(c => (
+                  <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="space-y-1.5 flex-1">
+              <Label htmlFor="rc-from" className="text-sm font-medium">From Date</Label>
+              <Input id="rc-from" type="date" value={rcFrom} onChange={e => setRcFrom(e.target.value)} />
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <Label htmlFor="rc-to" className="text-sm font-medium">To Date</Label>
+              <Input id="rc-to" type="date" value={rcTo} onChange={e => setRcTo(e.target.value)} />
+            </div>
+          </div>
+
+          <Button
+            onClick={handleGenerate}
+            disabled={rcCustomer === "__none__"}
+            className="w-full sm:w-auto gap-2"
+          >
+            <Search className="w-4 h-4" /> Generate Customer Report
+          </Button>
+        </div>
+      </Card>
+
+      {/* States */}
+      {!rcQuery && (
+        <p className="text-sm text-muted-foreground text-center py-4">
+          Select a customer and date range, then click Generate.
+        </p>
+      )}
+
+      {rcQuery && isLoading && (
+        <div className="flex items-center justify-center h-32 text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            Generating receipt…
+          </div>
+        </div>
+      )}
+
+      {rcQuery && isError && (
+        <Card className="p-4 text-center text-red-500 border-red-200 bg-red-50 text-sm">
+          Failed to load receipt. Please try again.
+        </Card>
+      )}
+
+      {/* Receipt results */}
+      {rcQuery && !isLoading && !isError && data && (
+        <>
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row gap-[10px]">
+            <Button variant="outline" onClick={handleExport} disabled={exporting}
+              className="flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium">
+              {exporting
+                ? <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> Exporting…</>
+                : <><ImageIcon className="w-4 h-4" /> Export Image</>}
+            </Button>
+            <Button variant={copied ? "default" : "outline"} onClick={handleCopy}
+              className={`flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium transition-all ${copied ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : ""}`}>
+              {copied ? <><Check className="w-4 h-4" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy Text</>}
+            </Button>
+          </div>
+
+          {/* Receipt card */}
+          <Card className="overflow-hidden">
+            <div className="p-5 max-w-sm mx-auto space-y-0">
+              {/* Header */}
+              <div className="text-center pb-4">
+                <div className="text-base font-bold tracking-wider uppercase">Customer Receipt</div>
+                <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
+                  <div><span className="font-medium text-foreground">Customer :</span> {data.customer}</div>
+                  <div className="text-xs">
+                    <span className="font-medium">From :</span> {fmtDate(data.dateFrom)}
+                    &nbsp;·&nbsp;
+                    <span className="font-medium">To :</span> {fmtDate(data.dateTo)}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {data.dateGroups.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic text-center py-6">No transactions found.</p>
+              ) : (
+                data.dateGroups.map((g, gi) => (
+                  <div key={gi}>
+                    {/* Date label */}
+                    <div className="py-3 font-semibold text-sm text-foreground">{fmtDate(g.date)}</div>
+
+                    {/* Items */}
+                    <div className="space-y-2 pb-3">
+                      {g.items.map((it, i) => (
+                        <div key={i} className="flex items-start justify-between gap-3 text-sm">
+                          <span className="text-foreground font-medium leading-snug min-w-0 flex-1">{it.productName}</span>
+                          <span className="text-muted-foreground tabular-nums shrink-0 text-right">
+                            {it.qty} × {fmt(it.price)} = <span className="font-semibold text-foreground">{fmt(it.total)}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Separator className="border-dashed" />
+                  </div>
+                ))
+              )}
+
+              {/* Total */}
+              <div className="pt-4 flex items-center justify-between">
+                <span className="font-bold text-base">TOTAL ALL</span>
+                <span className="font-bold text-xl text-accent">{fmt(data.totalAmount)}</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Hidden print view */}
+          <ReceiptPrintView data={data} printRef={printRef} />
+        </>
+      )}
+    </div>
   );
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SalesReport() {
-  const [dateFrom,  setDateFrom]  = useState(monthStart);
-  const [dateTo,    setDateTo]    = useState(today);
-  const [customer,  setCustomer]  = useState("__all__");
-  const [query,     setQuery]     = useState<{ dateFrom: string; dateTo: string; customer: string } | null>(null);
+  const [dateFrom,     setDateFrom]     = useState(monthStart);
+  const [dateTo,       setDateTo]       = useState(today);
+  const [customer,     setCustomer]     = useState("__all__");
+  const [query,        setQuery]        = useState<{ dateFrom: string; dateTo: string; customer: string } | null>(null);
+  const [showReceipt,  setShowReceipt]  = useState(false);
 
   const { data: customers } = useQuery<CustomerRow[]>({
     queryKey: ["customers-list"],
@@ -473,14 +728,35 @@ export default function SalesReport() {
             </Select>
           </div>
 
-          <Button onClick={handleGenerate} className="w-full sm:w-auto gap-2">
-            <Search className="w-4 h-4" /> Generate Report
-          </Button>
+          {/* Buttons row */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button onClick={handleGenerate} className="flex-1 sm:flex-none gap-2">
+              <Search className="w-4 h-4" /> Generate Report
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowReceipt(v => !v)}
+              className={`flex-1 sm:flex-none gap-2 ${showReceipt ? "border-accent text-accent bg-accent/5" : ""}`}
+            >
+              <ReceiptText className="w-4 h-4" />
+              Customer Receipt Report
+            </Button>
+          </div>
         </div>
       </Card>
 
-      {/* ── States ── */}
-      {!query && (
+      {/* ── Customer Receipt Report section ── */}
+      {showReceipt && (
+        <Card className="p-4">
+          <CustomerReceiptReport
+            customers={customers ?? []}
+            onClose={() => setShowReceipt(false)}
+          />
+        </Card>
+      )}
+
+      {/* ── Sales Report States ── */}
+      {!query && !showReceipt && (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-muted-foreground">
           <ReceiptText className="w-12 h-12 opacity-20" />
           <p className="text-sm">Set the date range and press Generate Report.</p>
