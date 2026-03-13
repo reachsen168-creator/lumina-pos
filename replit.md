@@ -1,4 +1,4 @@
-# Lumina POS
+# Workspace
 
 ## Overview
 

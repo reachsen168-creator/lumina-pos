@@ -36,7 +36,6 @@ export default function SaleForm() {
   const [customerName, setCustomerName] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [note, setNote] = useState("");
-  const [deposit, setDeposit] = useState<string>("");
   const [deliveryId, setDeliveryId] = useState<string>("none");
   const [items, setItems] = useState<any[]>([]);
 
@@ -58,7 +57,6 @@ export default function SaleForm() {
       setCustQuery(existingInvoice.customerName);
       setDate(existingInvoice.date.split("T")[0]);
       setNote(existingInvoice.note || "");
-      setDeposit(existingInvoice.deposit ? String(existingInvoice.deposit) : "");
       setDeliveryId(existingInvoice.deliveryId ? existingInvoice.deliveryId.toString() : "none");
       setItems(
         existingInvoice.items.map((i) => ({
@@ -194,11 +192,9 @@ export default function SaleForm() {
       }
     }
 
-    const depositNum = parseFloat(deposit) || 0;
     const payload = {
       customerName: customerName.trim(),
       date,
-      deposit: depositNum,
       note: note || null,
       deliveryId: deliveryId === "none" ? null : Number(deliveryId),
       items: items.map((i) => ({ productId: i.productId, qty: Number(i.qty), price: Number(i.price) })),
@@ -319,21 +315,6 @@ export default function SaleForm() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Deposit ($)</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={deposit}
-                    onChange={(e) => setDeposit(e.target.value)}
-                    placeholder="0.00"
-                    className="h-11 rounded-xl bg-muted/30 pl-7"
-                  />
-                </div>
               </div>
               <div className="space-y-2">
                 <Label>Internal Note</Label>
@@ -482,18 +463,6 @@ export default function SaleForm() {
                 <span className="text-lg font-medium">Grand Total</span>
                 <span className="text-4xl font-display font-bold text-accent">${grandTotal.toFixed(2)}</span>
               </div>
-              {(parseFloat(deposit) > 0) && (
-                <>
-                  <div className="flex justify-between text-sm text-primary-foreground/70 pt-2 border-t border-white/10">
-                    <span>Deposit</span>
-                    <span className="font-bold text-white">− ${(parseFloat(deposit) || 0).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-bold">
-                    <span className="text-white">Balance Due</span>
-                    <span className="text-accent">${Math.max(0, grandTotal - (parseFloat(deposit) || 0)).toFixed(2)}</span>
-                  </div>
-                </>
-              )}
             </div>
 
             <Button

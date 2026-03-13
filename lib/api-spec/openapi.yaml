@@ -984,8 +984,6 @@ components:
           nullable: true
         total:
           type: number
-        deposit:
-          type: number
         deliveryId:
           type: integer
           nullable: true
@@ -995,7 +993,7 @@ components:
         note:
           type: string
           nullable: true
-      required: [id, invoiceNo, customerName, date, total, deposit]
+      required: [id, invoiceNo, customerName, date, total]
 
     InvoiceWithItems:
       allOf:
@@ -1015,9 +1013,6 @@ components:
           type: string
         date:
           type: string
-        deposit:
-          type: number
-          nullable: true
         deliveryId:
           type: integer
           nullable: true
