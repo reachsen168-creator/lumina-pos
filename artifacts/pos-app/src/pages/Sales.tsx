@@ -20,7 +20,6 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { InvoicePreview, type FullInvoice } from "@/components/InvoicePreview";
 import html2canvas from "html2canvas";
-import { useTelegramSettings } from "@/pages/Settings";
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -155,8 +154,6 @@ export default function Sales() {
   const [expandedId, setExpandedId]     = useState<number | null>(null);
   const [itemsCache, setItemsCache]     = useState<Record<number, CachedItem[]>>({});
 
-  const tg = useTelegramSettings();
-
   const { data: invoices = [], isLoading } = useGetInvoices({
     search: search || undefined,
     dateFrom: dateFrom || undefined,
@@ -167,9 +164,11 @@ export default function Sales() {
   const { toast } = useToast();
   const deleteMut = useDeleteInvoice();
 
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
   /* fetch full invoice (with items) */
   const fetchFull = async (id: number): Promise<FullInvoice> => {
-    const res = await fetch(`/api/invoices/${id}`);
+    const res = await fetch(`${BASE}/api/invoices/${id}`);
     if (!res.ok) throw new Error("Failed to fetch invoice");
     return res.json();
   };
@@ -212,17 +211,18 @@ export default function Sales() {
   };
 
   const handleSendTelegram = async (id: number) => {
-    if (!tg.username) {
-      toast({ title: "Configure a Telegram group username in Settings first", variant: "destructive" });
+    const username = (localStorage.getItem("lumina_telegram_username") ?? "").trim();
+    if (!username) {
+      toast({ title: "Go to Settings → Telegram Integration to set a group username", variant: "destructive" });
       return;
     }
     try {
-      const inv = await fetchFull(id);
+      const inv  = await fetchFull(id);
       const text = buildTelegramText(inv);
-      const url  = `https://t.me/${tg.username}?text=${encodeURIComponent(text)}`;
+      const url  = `https://t.me/${username}?text=${encodeURIComponent(text)}`;
       window.location.href = url;
     } catch {
-      toast({ title: "Failed to prepare message", variant: "destructive" });
+      toast({ title: "Failed to prepare Telegram message", variant: "destructive" });
     }
   };
 
@@ -449,15 +449,13 @@ export default function Sales() {
                       >
                         <Share2 className="w-3.5 h-3.5 mr-1" /> Share Image
                       </Button>
-                      {tg.enabled && (
-                        <Button
-                          variant="ghost" size="sm"
-                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-8 px-2 text-xs"
-                          onClick={() => handleSendTelegram(inv.id)}
-                        >
-                          <Send className="w-3.5 h-3.5 mr-1" /> Telegram
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost" size="sm"
+                        className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-8 px-2 text-xs"
+                        onClick={() => handleSendTelegram(inv.id)}
+                      >
+                        <Send className="w-3.5 h-3.5 mr-1" /> Telegram
+                      </Button>
                       <Link href={`/sales/${inv.id}/packing`}>
                         <Button
                           variant="ghost" size="sm"

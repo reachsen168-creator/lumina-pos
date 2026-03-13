@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Send, Settings2, CheckCircle2 } from "lucide-react";
+import { Send, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,6 @@ export default function Settings() {
       <PageHeader
         title="Settings"
         description="Configure app integrations and preferences"
-        icon={<Settings2 className="w-6 h-6" />}
       />
 
       <Card className="p-6 shadow-sm border-none ring-1 ring-border max-w-xl">
