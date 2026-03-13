@@ -66,7 +66,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
     headerWrap: {
       display: "flex",
       justifyContent: "space-between",
-      alignItems: "center",
+      alignItems: "flex-start",
       borderBottom: "2px solid #1a1a1a",
       marginBottom: 20,
       paddingBottom: 16,
@@ -158,7 +158,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
 
         {/* Centre: title */}
         <div style={s.headerCenter}>
-          <div style={{ fontSize: 30, fontWeight: 800, color: "#1a1a1a", lineHeight: 1.2 }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#1a1a1a", lineHeight: 1.2, margin: 0 }}>
             វិក័យបត្រ
           </div>
           <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: 3, color: "#444", marginTop: 4 }}>
