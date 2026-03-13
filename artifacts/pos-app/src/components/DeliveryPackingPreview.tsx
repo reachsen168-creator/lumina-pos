@@ -140,29 +140,35 @@ export const DeliveryPackingPreview = forwardRef<HTMLDivElement, Props>(
                 const isMiddle = pos === Math.floor(total / 2);
 
                 /*
-                 * Use Unicode box-drawing characters so the connector
-                 * renders identically in both the browser and the exported image.
-                 *
-                 * All rows in a group:  │  (U+2502 BOX DRAWINGS LIGHT VERTICAL)
-                 * Middle row:          ├── qty type
+                 * Box-drawing characters: both │ and ├── use the SAME monospace
+                 * font so vertical bars sit on the exact same horizontal position
+                 * across every row in the group.
+                 * The label (qty + type) is rendered in a separate <span> using
+                 * the Khmer font so text renders correctly.
                  */
-                const boxChar = isMiddle
-                  ? `\u251C\u2500\u2500 ${group.packageQty} ${group.packageType}`
-                  : "\u2502";
-
                 pkgCell = (
                   <td style={{
                     ...s.td,
                     borderRight: "none",
                     paddingLeft: 14,
-                    fontFamily: isMiddle ? `${FONT}` : MONO,
-                    fontSize: isMiddle ? 13 : 15,
-                    fontWeight: isMiddle ? 700 : 400,
+                    fontFamily: MONO,
+                    fontSize: 15,
                     color: "#1a1a1a",
                     whiteSpace: "nowrap" as const,
-                    letterSpacing: isMiddle ? 0.2 : 0,
                   }}>
-                    {boxChar}
+                    {isMiddle ? (
+                      <>
+                        {"\u251C\u2500\u2500 "}
+                        <span style={{
+                          fontFamily: FONT,
+                          fontSize: 13,
+                          fontWeight: 700,
+                          letterSpacing: 0.2,
+                        }}>
+                          {group.packageQty} {group.packageType}
+                        </span>
+                      </>
+                    ) : "\u2502"}
                   </td>
                 );
               } else {

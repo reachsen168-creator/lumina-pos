@@ -89,6 +89,15 @@ export default function DeliveryPacking() {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading…</div>;
   }
 
+  /* ── Live groups: merge in-progress edit into preview ── */
+  const liveGroups: PackageGroup[] = editingId
+    ? groups.map(g =>
+        g.id === editingId
+          ? { ...g, packageType: editDraft.type.trim() || g.packageType, packageQty: Math.max(1, editDraft.qty) }
+          : g
+      )
+    : groups;
+
   /* ── Helpers ── */
   const assignedIndices = new Set(groups.flatMap(g => g.itemIndices));
 
@@ -401,7 +410,7 @@ export default function DeliveryPacking() {
           <DeliveryPackingPreview
             ref={previewRef}
             invoice={invoice}
-            groups={groups}
+            groups={liveGroups}
             showDelivery={showDelivery}
           />
         </div>
