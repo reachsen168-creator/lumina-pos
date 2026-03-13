@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Minus, Trash2, Search, UserPlus, ChevronDown, AlertTriangle, Wrench } from "lucide-react";
+import { ArrowLeft, Plus, Minus, Trash2, Search, UserPlus, ChevronDown, AlertTriangle, Wrench, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -73,6 +73,8 @@ export default function SaleForm() {
   const createMut = useCreateInvoice();
   const updateMut = useUpdateInvoice();
   const createCustomerMut = useCreateCustomer();
+
+  const isFullyDamaged = isEdit && (existingInvoice as any)?.status === "Fully Damaged";
 
   useEffect(() => {
     if (isEdit && existingInvoice) {
@@ -303,6 +305,18 @@ export default function SaleForm() {
         </Button>
         <h1 className="text-3xl font-display font-bold text-foreground">{isEdit ? "Edit Sale" : "New Sale"}</h1>
       </div>
+
+      {isFullyDamaged && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4">
+          <ShieldAlert className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-red-700 text-sm">Fully Damaged Invoice</p>
+            <p className="text-xs text-red-600 mt-0.5">
+              All items on this invoice have been marked as damaged. The invoice total is $0.00 and it is kept for record purposes only. This invoice is excluded from all sales reports.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Col: Details & Search */}
@@ -577,7 +591,7 @@ export default function SaleForm() {
 
             <Button
               onClick={handleSave}
-              disabled={createMut.isPending || updateMut.isPending || items.length === 0}
+              disabled={createMut.isPending || updateMut.isPending || items.length === 0 || isFullyDamaged}
               className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-white rounded-xl shadow-lg shadow-black/20"
             >
               {createMut.isPending || updateMut.isPending ? "Saving..." : isEdit ? "Update Sale" : "Complete Sale"}

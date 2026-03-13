@@ -14,7 +14,7 @@ import { DateShortcuts } from "@/components/ui/date-shortcuts";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus, Search, FileText, Trash2, Edit, Truck,
-  ChevronDown, ChevronUp, Clipboard, FileDown, Share2, Package
+  ChevronDown, ChevronUp, Clipboard, FileDown, Share2, Package, AlertTriangle, ShieldAlert
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -317,9 +317,21 @@ export default function Sales() {
                     {/* Card header */}
                     <div className="flex justify-between items-start mb-3 gap-2">
                       <div className="min-w-0">
-                        <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-1 rounded-md mb-2 inline-block">
-                          {inv.invoiceNo}
-                        </span>
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-1 rounded-md inline-block">
+                            {inv.invoiceNo}
+                          </span>
+                          {(inv as any).status === "Fully Damaged" && (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-100 border border-red-200 px-2 py-1 rounded-full">
+                              <ShieldAlert className="w-3 h-3" /> Fully Damaged
+                            </span>
+                          )}
+                          {(inv as any).status === "Partially Damaged" && (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-100 border border-orange-200 px-2 py-1 rounded-full">
+                              <AlertTriangle className="w-3 h-3" /> Partially Damaged
+                            </span>
+                          )}
+                        </div>
                         <h3 className="font-bold text-lg text-foreground line-clamp-1">{inv.customerName}</h3>
                         <p className="text-sm text-muted-foreground mt-1">
                           {safeFormatDate((inv as any).createdAt ?? inv.date, "dd MMMM yyyy HH:mm")}

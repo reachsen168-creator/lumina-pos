@@ -7,6 +7,18 @@ const router = Router();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Compute invoice status from current item qtys. */
+function computeInvoiceStatus(items: Array<{ qty: number }>, existingStatus?: string): string {
+  if (!items.length) return existingStatus || "Completed";
+  const allZero = items.every(i => i.qty <= 0);
+  const someZero = items.some(i => i.qty <= 0);
+  if (allZero) return "Fully Damaged";
+  if (someZero) return "Partially Damaged";
+  // If all qtys are positive, only downgrade from damaged status if explicitly reset
+  if (existingStatus === "Partially Damaged" || existingStatus === "Fully Damaged") return "Partially Damaged";
+  return "Completed";
+}
+
 async function getInvoiceWithItems(id: number) {
   const [invoice] = await db
     .select({
@@ -19,6 +31,7 @@ async function getInvoiceWithItems(id: number) {
       deliveryId: invoicesTable.deliveryId,
       deliveryNo: deliveriesTable.deliveryNo,
       note: invoicesTable.note,
+      status: invoicesTable.status,
     })
     .from(invoicesTable)
     .leftJoin(deliveriesTable, eq(invoicesTable.deliveryId, deliveriesTable.id))
@@ -47,6 +60,7 @@ async function getInvoiceWithItems(id: number) {
     deliveryId: invoice.deliveryId,
     deliveryNo: invoice.deliveryNo || null,
     note: invoice.note || null,
+    status: invoice.status || "Completed",
     items: items.map(i => ({
       id: i.id,
       invoiceId: i.invoiceId,
@@ -149,6 +163,7 @@ router.get("/", async (req, res) => {
       deliveryId: invoicesTable.deliveryId,
       deliveryNo: deliveriesTable.deliveryNo,
       note: invoicesTable.note,
+      status: invoicesTable.status,
     })
     .from(invoicesTable)
     .leftJoin(deliveriesTable, eq(invoicesTable.deliveryId, deliveriesTable.id))
@@ -161,6 +176,7 @@ router.get("/", async (req, res) => {
     createdAt: i.createdAt ? i.createdAt.toISOString() : null,
     deliveryNo: i.deliveryNo || null,
     note: i.note || null,
+    status: i.status || "Completed",
   })));
 });
 
@@ -188,7 +204,7 @@ router.post("/", async (req, res) => {
   await db.transaction(async (tx) => {
     const [invoice] = await tx
       .insert(invoicesTable)
-      .values({ invoiceNo, customerName, date, total: String(total), deliveryId: deliveryId || null, note: note || null })
+      .values({ invoiceNo, customerName, date, total: String(total), deliveryId: deliveryId || null, note: note || null, status: "Completed" })
       .returning();
 
     invoiceId = invoice.id;
@@ -230,14 +246,22 @@ router.put("/:id", async (req, res) => {
     // 2. Restore stock for old items
     await restoreStock(tx, oldItems);
 
-    // 3. Update invoice header
-    const total = (items || []).reduce((sum: number, item: any) => sum + item.qty * item.price, 0);
+    // 3. Fetch current status before updating
+    const [currentInv] = await tx.select({ status: invoicesTable.status }).from(invoicesTable).where(eq(invoicesTable.id, id));
+    const currentStatus = currentInv?.status || "Completed";
+
+    // 4. Compute new status based on new items
+    const newItems = (items || []) as Array<{ qty: number }>;
+    const newStatus = computeInvoiceStatus(newItems, currentStatus);
+
+    // 5. Update invoice header
+    const total = newItems.reduce((sum: number, item: any) => sum + item.qty * item.price, 0);
     await tx
       .update(invoicesTable)
-      .set({ customerName, date, total: String(total), deliveryId: deliveryId || null, note: note || null })
+      .set({ customerName, date, total: String(total), deliveryId: deliveryId || null, note: note || null, status: newStatus })
       .where(eq(invoicesTable.id, id));
 
-    // 4. Replace all items
+    // 6. Replace all items
     await tx.delete(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, id));
     for (const item of (items || [])) {
       const subtotal = item.qty * item.price;
@@ -250,7 +274,7 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    // 5. Only after all items are saved, reduce stock for new items
+    // 7. Only after all items are saved, reduce stock for new items
     await decreaseStock(tx, items || []);
   });
 
@@ -400,13 +424,19 @@ router.post("/:id/damage-item", async (req, res) => {
   const newTotal = allItems.reduce((s, i) => s + parseFloat(i.subtotal as any), 0);
   await db.update(invoicesTable).set({ total: newTotal.toString() }).where(eq(invoicesTable.id, invoiceId));
 
-  // Append note
+  // Append note + update invoice status
   const [inv] = await db.select({ note: invoicesTable.note, invoiceNo: invoicesTable.invoiceNo, customerName: invoicesTable.customerName })
     .from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
   const noteAppend = `${damageQty} ${invItem.productName || "item"} damaged and removed from invoice`;
   const existingNote = inv.note || "";
   const newNote = existingNote ? `${existingNote}; ${noteAppend}` : noteAppend;
-  await db.update(invoicesTable).set({ note: newNote }).where(eq(invoicesTable.id, invoiceId));
+
+  // Recompute invoice status from all current item qtys
+  const itemsForStatus = await db.select({ qty: invoiceItemsTable.qty }).from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, invoiceId));
+  const parsedItems = itemsForStatus.map(i => ({ qty: parseFloat(i.qty as any) }));
+  const newStatus = computeInvoiceStatus(parsedItems, "Partially Damaged");
+
+  await db.update(invoicesTable).set({ note: newNote, status: newStatus }).where(eq(invoicesTable.id, invoiceId));
 
   // Create damage record
   const { damageRecordsTable } = await import("@workspace/db");

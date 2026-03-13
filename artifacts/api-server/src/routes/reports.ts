@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, invoicesTable, invoiceItemsTable, productsTable, deliveriesTable } from "@workspace/db";
-import { eq, and, gte, lte, desc, sql, ilike } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, ilike, ne } from "drizzle-orm";
 
 const router = Router();
 
@@ -8,7 +8,7 @@ router.get("/dashboard", async (req, res) => {
   const { date } = req.query as Record<string, string>;
   const today = date || new Date().toISOString().split("T")[0];
 
-  // Today's invoices
+  // Today's invoices (exclude Fully Damaged)
   const todayInvoices = await db
     .select({
       id: invoicesTable.id,
@@ -20,7 +20,7 @@ router.get("/dashboard", async (req, res) => {
       note: invoicesTable.note,
     })
     .from(invoicesTable)
-    .where(eq(invoicesTable.date, today))
+    .where(and(eq(invoicesTable.date, today), ne(invoicesTable.status, "Fully Damaged")))
     .orderBy(desc(invoicesTable.id));
 
   const totalSales = todayInvoices.reduce((s, i) => s + parseFloat(i.total as any), 0);
@@ -93,7 +93,7 @@ router.get("/sales", async (req, res) => {
       total: invoicesTable.total,
     })
     .from(invoicesTable)
-    .where(and(gte(invoicesTable.date, from), lte(invoicesTable.date, to)))
+    .where(and(gte(invoicesTable.date, from), lte(invoicesTable.date, to), ne(invoicesTable.status, "Fully Damaged")))
     .orderBy(invoicesTable.date);
 
   const byDateMap = new Map<string, { date: string; totalSales: number; invoiceCount: number }>();
@@ -237,6 +237,7 @@ router.get("/sales-full", async (req, res) => {
   const conditions: any[] = [
     gte(invoicesTable.date, from),
     lte(invoicesTable.date, to),
+    ne(invoicesTable.status, "Fully Damaged"),
   ];
   if (customer.trim()) {
     conditions.push(ilike(invoicesTable.customerName, `%${customer.trim()}%`));
@@ -335,6 +336,7 @@ router.get("/customer-receipt", async (req, res) => {
       gte(invoicesTable.date, from),
       lte(invoicesTable.date, to),
       ilike(invoicesTable.customerName, `%${customer.trim()}%`),
+      ne(invoicesTable.status, "Fully Damaged"),
     ))
     .orderBy(invoicesTable.date);
 

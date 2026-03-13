@@ -12,6 +12,7 @@ export const invoicesTable = pgTable("invoices", {
   total: numeric("total", { precision: 10, scale: 2 }).notNull().default("0"),
   deliveryId: integer("delivery_id").references(() => deliveriesTable.id, { onDelete: "set null" }),
   note: text("note"),
+  status: text("status").notNull().default("Completed"),
   packingGroups: text("packing_groups"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
