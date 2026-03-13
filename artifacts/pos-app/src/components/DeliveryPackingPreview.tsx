@@ -32,14 +32,14 @@ export interface PackageGroup {
   packageQty: number;
 }
 
-/** "Total : 2 កេះ + 1 បាវ" — aggregates all groups, preserves insertion order */
+/** "Total Package : 2 កេះ + 1 បាវ" */
 function buildTotalLine(groups: PackageGroup[]): string {
   if (groups.length === 0) return "";
   const map = new Map<string, number>();
   for (const g of groups) {
     map.set(g.packageType, (map.get(g.packageType) ?? 0) + g.packageQty);
   }
-  return "Total : " + [...map.entries()].map(([t, q]) => `${q} ${t}`).join(" + ");
+  return "Total Package : " + [...map.entries()].map(([t, q]) => `${q} ${t}`).join(" + ");
 }
 
 interface Props {
@@ -48,18 +48,6 @@ interface Props {
   showDelivery?: boolean;
 }
 
-/*
- * TABLE LAYOUT — 5 columns:
- *   Col 1: No       (36 px)
- *   Col 2: Name     (auto)
- *   Col 3: Qty      (70 px)
- *   Col 4: Connector (42 px) — dedicated column for │ / ├──
- *   Col 5: Label    (auto)   — package qty + type text
- *
- * The "PACKAGE" header spans cols 4+5 (colSpan 2).
- * Using two real <td> cells eliminates any inline-block alignment issues —
- * the browser's table engine guarantees col 5 always starts at the same x.
- */
 export const DeliveryPackingPreview = forwardRef<HTMLDivElement, Props>(
   ({ invoice, groups, showDelivery = true }, ref) => {
     const rawDate   = invoice.createdAt ?? invoice.date;
@@ -68,17 +56,18 @@ export const DeliveryPackingPreview = forwardRef<HTMLDivElement, Props>(
 
     // Build lookup: itemIndex → { group, pos, total }
     const groupMap = new Map<number, { group: PackageGroup; pos: number; total: number }>();
+    // Track the last index of each group for separator rendering
+    const groupLastIdx = new Map<string, number>();
     for (const g of groups) {
       const sorted = [...g.itemIndices].sort((a, b) => a - b);
       sorted.forEach((idx, pos) => groupMap.set(idx, { group: g, pos, total: sorted.length }));
+      groupLastIdx.set(g.id, sorted[sorted.length - 1]);
     }
 
     const items     = invoice.items;
     const totalLine = buildTotalLine(groups);
 
     const FONT = "'Noto Sans Khmer', Arial, sans-serif";
-    const MONO = "'Courier New', 'Lucida Console', monospace";
-
     const BASE: React.CSSProperties = { fontFamily: FONT, fontSize: 13, color: "#1a1a1a" };
 
     const s: Record<string, React.CSSProperties> = {
@@ -100,6 +89,57 @@ export const DeliveryPackingPreview = forwardRef<HTMLDivElement, Props>(
         fontFamily: FONT,
       },
     };
+
+    // Build table rows — groups get a thicker separator line after their last row
+    const tableRows: React.ReactNode[] = [];
+
+    items.forEach((item, i) => {
+      const info = groupMap.get(i);
+      const bg   = i % 2 === 0 ? "#ffffff" : "#fafafa";
+
+      // Is this the last row of its group?
+      const isGroupEnd = info ? groupLastIdx.get(info.group.id) === i : false;
+
+      // Draw a separator after the last row of a group (except at the very end of the table)
+      const separatorBorder = isGroupEnd && i < items.length - 1
+        ? "2px solid #aaaaaa"
+        : "1px solid #e8e8e8";
+
+      /*
+       * Package label visibility:
+       *   middleRow = Math.floor((startRow + endRow) / 2)
+       *             = Math.floor((total - 1) / 2)
+       *
+       * Only the middle row of the group shows the label.
+       * Non-middle rows and ungrouped rows leave the package column empty.
+       */
+      let pkgLabel = "";
+      if (info) {
+        const isMiddle = info.pos === Math.floor((info.total - 1) / 2);
+        if (isMiddle) {
+          pkgLabel = `${info.group.packageQty} ${info.group.packageType}`;
+        }
+      }
+
+      const cellStyle: React.CSSProperties = { ...s.td, borderBottom: separatorBorder };
+
+      tableRows.push(
+        <tr key={i} style={{ backgroundColor: bg }}>
+          <td style={{ ...cellStyle, textAlign: "center" as const, color: "#555" }}>{i + 1}</td>
+          <td style={{ ...cellStyle }}>{item.productName}</td>
+          <td style={{ ...cellStyle, textAlign: "center" as const, fontWeight: 700 }}>{item.qty}</td>
+          <td style={{
+            ...cellStyle,
+            borderRight: "none",
+            fontWeight: pkgLabel ? 700 : 400,
+            color: "#1a1a1a",
+            whiteSpace: "nowrap" as const,
+          }}>
+            {pkgLabel}
+          </td>
+        </tr>
+      );
+    });
 
     return (
       <div ref={ref} style={s.root}>
@@ -129,110 +169,22 @@ export const DeliveryPackingPreview = forwardRef<HTMLDivElement, Props>(
           </div>
         )}
 
-        {/* ── Packing table — 5 columns ── */}
+        {/* ── Packing table — 4 columns ── */}
         <table style={s.table}>
-          <colgroup>
-            <col style={{ width: 36 }} />
-            <col />
-            <col style={{ width: 70 }} />
-            <col style={{ width: 42 }} />
-            <col />
-          </colgroup>
-
           <thead>
             <tr>
-              <th style={{ ...s.th, textAlign: "center" as const }}>No</th>
+              <th style={{ ...s.th, width: 36, textAlign: "center" as const }}>No</th>
               <th style={{ ...s.th, textAlign: "left" as const }}>Name of Good</th>
-              <th style={{ ...s.th, textAlign: "center" as const }}>Qty</th>
-              {/* "PACKAGE" header spans the connector + label columns */}
-              <th colSpan={2} style={{ ...s.th, textAlign: "left" as const, borderRight: "none" }}>Package</th>
+              <th style={{ ...s.th, width: 70, textAlign: "center" as const }}>Qty</th>
+              <th style={{ ...s.th, width: 200, textAlign: "left" as const, borderRight: "none" }}>Package</th>
             </tr>
           </thead>
 
           <tbody>
-            {items.map((item, i) => {
-              const info = groupMap.get(i);
-              const bg   = i % 2 === 0 ? "#ffffff" : "#fafafa";
-
-              /*
-               * middleRow = Math.floor((startRow + endRow) / 2)
-               *           = Math.floor((0 + total-1) / 2)
-               *
-               * Multi-item group:
-               *   connector cell → │ (non-middle)  /  ├── (middle)
-               *   label cell     → empty           /  qty type
-               *
-               * Single-item group (total === 1):
-               *   connector cell → empty
-               *   label cell     → qty type
-               *
-               * No group:
-               *   both cells empty
-               */
-              let connCell: React.ReactNode;
-              let labelCell: React.ReactNode;
-
-              if (info) {
-                const { group, pos, total } = info;
-                const isMulti  = total > 1;
-                const isMiddle = pos === Math.floor((total - 1) / 2);
-
-                const connChar = isMulti
-                  ? (isMiddle ? "\u251C\u2500\u2500" : "\u2502")  // ├── or │
-                  : "";
-
-                const showLabel = isMiddle || !isMulti;
-
-                // Connector cell — monospace, no right border (merged with label)
-                connCell = (
-                  <td style={{
-                    ...s.td,
-                    borderRight: "none",
-                    padding: "7px 0 7px 10px",
-                    fontFamily: MONO,
-                    fontSize: 15,
-                    color: "#1a1a1a",
-                    whiteSpace: "nowrap" as const,
-                  }}>
-                    {connChar}
-                  </td>
-                );
-
-                // Label cell — Khmer font
-                labelCell = (
-                  <td style={{
-                    ...s.td,
-                    borderRight: "none",
-                    padding: "7px 8px 7px 4px",
-                    fontFamily: FONT,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#1a1a1a",
-                    whiteSpace: "nowrap" as const,
-                  }}>
-                    {showLabel ? `${group.packageQty} ${group.packageType}` : ""}
-                  </td>
-                );
-
-              } else {
-                // Not in any group
-                connCell  = <td style={{ ...s.td, borderRight: "none", padding: "7px 0 7px 10px" }} />;
-                labelCell = <td style={{ ...s.td, borderRight: "none" }} />;
-              }
-
-              return (
-                <tr key={i} style={{ backgroundColor: bg }}>
-                  <td style={{ ...s.td, textAlign: "center" as const, color: "#555" }}>{i + 1}</td>
-                  <td style={{ ...s.td }}>{item.productName}</td>
-                  <td style={{ ...s.td, textAlign: "center" as const, fontWeight: 700 }}>{item.qty}</td>
-                  {connCell}
-                  {labelCell}
-                </tr>
-              );
-            })}
+            {tableRows}
           </tbody>
 
-          {/* ── Total Package summary — spans connector + label columns ── */}
+          {/* ── Total Package summary ── */}
           {totalLine && (
             <tfoot>
               <tr style={{ borderTop: "2px solid #1a1a1a" }}>
@@ -240,14 +192,10 @@ export const DeliveryPackingPreview = forwardRef<HTMLDivElement, Props>(
                   ...s.td, borderBottom: "none", borderRight: "1px solid #e0e0e0",
                   fontWeight: 700, textAlign: "right" as const, color: "#555",
                 }} />
-                {/* Empty connector cell */}
-                <td style={{ ...s.td, borderBottom: "none", borderRight: "none", padding: "7px 0 7px 10px" }} />
-                {/* Total line in the label column */}
                 <td style={{
                   ...s.td, borderBottom: "none", borderRight: "none",
                   fontFamily: FONT, fontWeight: 800, fontSize: 13,
-                  color: "#1a1a1a", padding: "7px 8px 7px 4px",
-                  whiteSpace: "nowrap" as const,
+                  color: "#1a1a1a", whiteSpace: "nowrap" as const,
                 }}>
                   {totalLine}
                 </td>
