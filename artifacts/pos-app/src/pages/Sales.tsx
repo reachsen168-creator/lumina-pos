@@ -14,7 +14,7 @@ import { DateShortcuts } from "@/components/ui/date-shortcuts";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus, Search, FileText, Trash2, Edit, Truck,
-  ChevronDown, ChevronUp, Clipboard, FileDown, Share2, Package, AlertTriangle, ShieldAlert
+  ChevronDown, ChevronUp, Clipboard, FileDown, Share2, Package, AlertTriangle, ShieldAlert, Send
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -33,6 +33,32 @@ const NUM_ROWS = 18;
 
 function fmt$(n: number) {
   return `${Number(n).toFixed(2)}$`;
+}
+
+const TELEGRAM_GROUP = "reach_delivery";
+
+function buildTelegramText(inv: FullInvoice): string {
+  const dateStr = safeFormatDate(inv.createdAt ?? inv.date, "d MMM yyyy");
+  const timeStr = safeFormatDate(inv.createdAt ?? inv.date, "HH:mm");
+
+  let text = `Date: ${dateStr} ${timeStr}\n\n`;
+  text += `Cus name: ${inv.customerName}\n\n`;
+
+  for (const item of inv.items) {
+    const price    = Number(item.price);
+    const qty      = Number(item.qty);
+    const subtotal = Number(item.subtotal ?? price * qty);
+    const priceStr    = Number.isInteger(price)    ? `$${price}`    : `$${price.toFixed(2)}`;
+    const subtotalStr = Number.isInteger(subtotal) ? `$${subtotal}` : `$${subtotal.toFixed(2)}`;
+    text += `${item.productName}\n`;
+    text += `${qty} × ${priceStr} = ${subtotalStr}\n\n`;
+  }
+
+  const total = Number(inv.total);
+  const totalStr = Number.isInteger(total) ? `$${total}` : `$${total.toFixed(2)}`;
+  text += `Total: ${totalStr}`;
+
+  return text;
 }
 
 function buildText(inv: FullInvoice, showDelivery: boolean): string {
@@ -181,6 +207,17 @@ export default function Sales() {
       toast({ title: "Invoice copied to clipboard" });
     } catch {
       toast({ title: "Failed to copy", variant: "destructive" });
+    }
+  };
+
+  const handleSendTelegram = async (id: number) => {
+    try {
+      const inv = await fetchFull(id);
+      const text = buildTelegramText(inv);
+      const url  = `https://t.me/${TELEGRAM_GROUP}?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank");
+    } catch {
+      toast({ title: "Failed to prepare message", variant: "destructive" });
     }
   };
 
@@ -406,6 +443,13 @@ export default function Sales() {
                         onClick={() => handleShareImage(inv.id, inv.invoiceNo)}
                       >
                         <Share2 className="w-3.5 h-3.5 mr-1" /> Share Image
+                      </Button>
+                      <Button
+                        variant="ghost" size="sm"
+                        className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-8 px-2 text-xs"
+                        onClick={() => handleSendTelegram(inv.id)}
+                      >
+                        <Send className="w-3.5 h-3.5 mr-1" /> Telegram
                       </Button>
                       <Link href={`/sales/${inv.id}/packing`}>
                         <Button
