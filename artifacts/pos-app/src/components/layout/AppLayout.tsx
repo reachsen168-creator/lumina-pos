@@ -5,7 +5,7 @@ import { RecoveryDialog } from "@/components/RecoveryDialog";
 import { 
   LayoutDashboard, Package, Tags, ReceiptText, 
   Users, Truck, HeartCrack, ArrowRightLeft, 
-  BarChart3, History, DatabaseBackup, Menu, X, ClipboardList, TrendingUp, Trash2
+  BarChart3, History, DatabaseBackup, Menu, X, ClipboardList, TrendingUp, Trash2, Settings2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -24,8 +24,9 @@ const navItems = [
   { href: "/delivery-report", label: "Delivery Report", icon: ClipboardList },
   { href: "/sales-report", label: "Sales Report", icon: TrendingUp },
   { href: "/trash", label: "Trash / Restore", icon: Trash2 },
-  { href: "/settings", label: "System Backup", icon: DatabaseBackup },
+  { href: "/backup", label: "System Backup", icon: DatabaseBackup },
   { href: "/history", label: "Audit Logs", icon: History },
+  { href: "/settings", label: "Settings", icon: Settings2 },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {

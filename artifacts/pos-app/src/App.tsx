@@ -18,6 +18,7 @@ import Reports from "@/pages/Reports";
 import HistoryLogs from "@/pages/HistoryLogs";
 import Trash from "@/pages/Trash";
 import Backup from "@/pages/Backup";
+import Settings from "@/pages/Settings";
 import DeliveryPacking from "@/pages/DeliveryPacking";
 import DeliveryReport from "@/pages/DeliveryReport";
 import SalesReport from "@/pages/SalesReport";
@@ -46,7 +47,8 @@ function Router() {
         <Route path="/sales-report" component={SalesReport} />
         <Route path="/history" component={HistoryLogs} />
         <Route path="/trash" component={Trash} />
-        <Route path="/settings" component={Backup} />
+        <Route path="/backup" component={Backup} />
+        <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

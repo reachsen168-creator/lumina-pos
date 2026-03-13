@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { InvoicePreview, type FullInvoice } from "@/components/InvoicePreview";
 import html2canvas from "html2canvas";
+import { useTelegramSettings } from "@/pages/Settings";
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -34,8 +35,6 @@ const NUM_ROWS = 18;
 function fmt$(n: number) {
   return `${Number(n).toFixed(2)}$`;
 }
-
-const TELEGRAM_GROUP = "reach_delivery";
 
 function buildTelegramText(inv: FullInvoice): string {
   const dateStr = safeFormatDate(inv.createdAt ?? inv.date, "d MMM yyyy");
@@ -156,6 +155,8 @@ export default function Sales() {
   const [expandedId, setExpandedId]     = useState<number | null>(null);
   const [itemsCache, setItemsCache]     = useState<Record<number, CachedItem[]>>({});
 
+  const tg = useTelegramSettings();
+
   const { data: invoices = [], isLoading } = useGetInvoices({
     search: search || undefined,
     dateFrom: dateFrom || undefined,
@@ -211,10 +212,14 @@ export default function Sales() {
   };
 
   const handleSendTelegram = async (id: number) => {
+    if (!tg.username) {
+      toast({ title: "Configure a Telegram group username in Settings first", variant: "destructive" });
+      return;
+    }
     try {
       const inv = await fetchFull(id);
       const text = buildTelegramText(inv);
-      const url  = `https://t.me/${TELEGRAM_GROUP}?text=${encodeURIComponent(text)}`;
+      const url  = `https://t.me/${tg.username}?text=${encodeURIComponent(text)}`;
       window.open(url, "_blank");
     } catch {
       toast({ title: "Failed to prepare message", variant: "destructive" });
@@ -444,13 +449,15 @@ export default function Sales() {
                       >
                         <Share2 className="w-3.5 h-3.5 mr-1" /> Share Image
                       </Button>
-                      <Button
-                        variant="ghost" size="sm"
-                        className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-8 px-2 text-xs"
-                        onClick={() => handleSendTelegram(inv.id)}
-                      >
-                        <Send className="w-3.5 h-3.5 mr-1" /> Telegram
-                      </Button>
+                      {tg.enabled && (
+                        <Button
+                          variant="ghost" size="sm"
+                          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-8 px-2 text-xs"
+                          onClick={() => handleSendTelegram(inv.id)}
+                        >
+                          <Send className="w-3.5 h-3.5 mr-1" /> Telegram
+                        </Button>
+                      )}
                       <Link href={`/sales/${inv.id}/packing`}>
                         <Button
                           variant="ghost" size="sm"

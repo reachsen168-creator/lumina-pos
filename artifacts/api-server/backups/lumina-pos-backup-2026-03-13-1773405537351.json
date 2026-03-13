@@ -1,6 +1,6 @@
 {
   "version": "2",
-  "exportedAt": "2026-03-13T11:42:55.813Z",
+  "exportedAt": "2026-03-13T12:38:57.351Z",
   "categories": [
     {
       "id": 1,
@@ -43,7 +43,7 @@
       "name": "Test Beer",
       "categoryId": null,
       "basePrice": "5.00",
-      "trackStock": true,
+      "trackStock": false,
       "stockQty": 17,
       "createdDate": "2026-03-13",
       "createdAt": "2026-03-13T02:39:10.230Z",
@@ -724,6 +724,26 @@
       "description": "Deleted invoice INV-004",
       "date": "2026-03-13",
       "createdAt": "2026-03-13T10:40:03.782Z"
+    },
+    {
+      "id": 75,
+      "user": "Admin",
+      "action": "UPDATE",
+      "entity": "product",
+      "entityId": 2,
+      "description": "Updated product: Test Beer",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T12:36:36.721Z"
+    },
+    {
+      "id": 76,
+      "user": "Admin",
+      "action": "UPDATE",
+      "entity": "product",
+      "entityId": 2,
+      "description": "Updated product: Test Beer",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T12:36:37.910Z"
     }
   ]
 }
