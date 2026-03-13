@@ -1,9 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
+import html2canvas from "html2canvas";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Truck, User, Package, CalendarDays, ChevronRight,
-  FileText, DollarSign, ChevronDown, ChevronsUpDown, Copy, Check,
+  FileText, DollarSign, ChevronDown, ChevronsUpDown, Copy, Check, Image as ImageIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -138,6 +139,83 @@ function CustomerRow({ group, open, onToggle }: CustomerRowProps) {
   );
 }
 
+// ── Hidden print view (inline styles → html2canvas safe) ─────────────────────
+
+function PrintView({ trip, printRef }: { trip: DeliveryTrip; printRef: React.RefObject<HTMLDivElement | null> }) {
+  const { delivery, customers, packageSummary, totalBills, grandTotal } = trip;
+
+  let dateStr = delivery.date;
+  try { dateStr = format(new Date(delivery.date), "dd/MM/yyyy"); } catch {}
+
+  const FONT = "'Noto Sans Khmer', Arial, sans-serif";
+  const W = 560;
+
+  return (
+    <div
+      ref={printRef}
+      style={{
+        position: "absolute", left: -9999, top: 0, zIndex: -1,
+        width: W, backgroundColor: "#ffffff",
+        fontFamily: FONT, fontSize: 14, color: "#1a1a1a",
+        padding: "36px 40px 40px", boxSizing: "border-box",
+      }}
+    >
+      {/* Header */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1, marginBottom: 10 }}>
+          DELIVERY REPORT
+        </div>
+        <div style={{ fontSize: 13, lineHeight: 2, color: "#444" }}>
+          <div><strong>Date</strong> : {dateStr}</div>
+          <div><strong>Delivery</strong> : {delivery.deliveryNo}</div>
+          {delivery.driver && <div><strong>Driver</strong> : {delivery.driver}</div>}
+        </div>
+      </div>
+
+      <div style={{ borderTop: "2px solid #1a1a1a", marginBottom: 18 }} />
+
+      {/* Customers */}
+      {customers.map((grp, gi) => {
+        const allItems: DeliveryItem[] = grp.invoices.flatMap(inv => inv.items);
+        return (
+          <div key={gi} style={{ marginBottom: 18 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: "#1a1a1a" }}>
+              Customer : {grp.customerName}
+            </div>
+            <div style={{ paddingLeft: 16 }}>
+              {allItems.map((it, ii) => (
+                <div key={ii} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                  <span>{it.productName}</span>
+                  <span style={{ color: "#555" }}>{it.qty} x {fmtAmt(it.price)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Package summary */}
+      {packageSummary.length > 0 && (
+        <>
+          <div style={{ borderTop: "1px solid #ccc", margin: "16px 0" }} />
+          <div style={{ fontSize: 13 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Total Package :</div>
+            <div style={{ color: "#444" }}>
+              {packageSummary.map(p => `${p.qty} ${p.type}`).join(" + ")}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Footer */}
+      <div style={{ borderTop: "2px solid #1a1a1a", marginTop: 20, paddingTop: 14, display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+        <span><strong>Total Bills</strong> : {totalBills}</span>
+        <span><strong>Total Amount</strong> : {fmt(grandTotal)}</span>
+      </div>
+    </div>
+  );
+}
+
 // ── DeliveryCard ──────────────────────────────────────────────────────────────
 
 function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
@@ -146,6 +224,28 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
   // Collapsed state: Set of customer names that are open
   const allNames = customers.map(c => c.customerName);
   const [openSet, setOpenSet] = useState<Set<string>>(() => new Set(allNames));
+
+  // Print ref for image export
+  const printRef = useRef<HTMLDivElement>(null);
+
+  // Export image state
+  const [exporting, setExporting] = useState(false);
+  const handleExport = useCallback(async () => {
+    if (!printRef.current) return;
+    setExporting(true);
+    try {
+      await document.fonts.ready;
+      const canvas = await html2canvas(printRef.current, {
+        scale: 3, useCORS: true, backgroundColor: "#ffffff",
+      });
+      const link = document.createElement("a");
+      link.download = `${delivery.deliveryNo}-report.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } finally {
+      setExporting(false);
+    }
+  }, [delivery.deliveryNo]);
 
   // Copy-to-clipboard state
   const [copied, setCopied] = useState(false);
@@ -190,6 +290,7 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
   const allClosed = allNames.every(n => !openSet.has(n));
 
   return (
+  <>
     <Card className="overflow-hidden border-border">
       {/* ── Card header ── */}
       <div className="flex items-start justify-between px-5 py-4 bg-primary/5 border-b border-border">
@@ -223,17 +324,32 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
             <div className="text-2xl font-bold text-accent">{fmt(grandTotal)}</div>
             <div className="text-xs text-muted-foreground">{totalBills} bill{totalBills !== 1 ? "s" : ""}</div>
           </div>
-          <Button
-            size="sm"
-            variant={copied ? "default" : "outline"}
-            onClick={handleCopy}
-            className={`h-8 gap-1.5 text-xs transition-all ${copied ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : ""}`}
-          >
-            {copied
-              ? <><Check className="w-3.5 h-3.5" /> Copied!</>
-              : <><Copy className="w-3.5 h-3.5" /> Copy as Text</>
-            }
-          </Button>
+          {/* Two action buttons */}
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExport}
+              disabled={exporting}
+              className="h-8 gap-1.5 text-xs"
+            >
+              {exporting
+                ? <><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> Exporting…</>
+                : <><ImageIcon className="w-3.5 h-3.5" /> Export Image</>
+              }
+            </Button>
+            <Button
+              size="sm"
+              variant={copied ? "default" : "outline"}
+              onClick={handleCopy}
+              className={`h-8 gap-1.5 text-xs transition-all ${copied ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : ""}`}
+            >
+              {copied
+                ? <><Check className="w-3.5 h-3.5" /> Copied!</>
+                : <><Copy className="w-3.5 h-3.5" /> Copy as Text</>
+              }
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -319,7 +435,12 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
           </div>
         </div>
       </div>
+
     </Card>
+
+    {/* Hidden print view outside Card so overflow:hidden doesn't clip it */}
+    <PrintView trip={trip} printRef={printRef} />
+  </>
   );
 }
 
