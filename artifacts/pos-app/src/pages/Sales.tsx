@@ -215,13 +215,7 @@ export default function Sales() {
       const message = buildTelegramMessage(inv);
       const encoded = encodeURIComponent(message);
 
-      // tg:// deep link opens the Telegram app directly on mobile.
-      // If Telegram is not installed the browser ignores it, so we
-      // fall back to the web share URL after a short delay.
-      window.location.href = `tg://msg?text=${encoded}`;
-      setTimeout(() => {
-        window.location.href = `https://t.me/share/url?text=${encoded}`;
-      }, 1500);
+      window.open(`tg://msg?text=${encoded}`);
     } catch {
       toast({ title: "Failed to prepare Telegram message", variant: "destructive" });
     }
