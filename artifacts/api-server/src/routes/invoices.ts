@@ -289,17 +289,26 @@ router.delete("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
 
   await db.transaction(async (tx) => {
-    const [inv] = await tx.select({ invoiceNo: invoicesTable.invoiceNo, customerName: invoicesTable.customerName }).from(invoicesTable).where(eq(invoicesTable.id, id));
+    const [inv] = await tx
+      .select({ invoiceNo: invoicesTable.invoiceNo, customerName: invoicesTable.customerName, deliveryId: invoicesTable.deliveryId })
+      .from(invoicesTable)
+      .where(eq(invoicesTable.id, id));
 
     const oldItems = await tx
       .select({ productId: invoiceItemsTable.productId, qty: invoiceItemsTable.qty })
       .from(invoiceItemsTable)
       .where(eq(invoiceItemsTable.invoiceId, id));
 
-    // Restore stock on soft-delete (same as before)
+    // Restore stock on soft-delete
     await restoreStock(tx, oldItems);
 
     await tx.update(invoicesTable).set({ deletedAt: new Date(), deletedBy: "Admin" }).where(eq(invoicesTable.id, id));
+
+    // Soft-delete the linked delivery (if any)
+    if (inv?.deliveryId) {
+      await tx.update(deliveriesTable).set({ deletedAt: new Date(), deletedBy: "Admin" }).where(eq(deliveriesTable.id, inv.deliveryId));
+    }
+
     await logHistory("DELETE", "invoice", id, `Deleted invoice ${inv?.invoiceNo || id} (${inv?.customerName || ""})`);
   });
 

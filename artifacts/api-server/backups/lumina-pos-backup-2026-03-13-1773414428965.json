@@ -1,6 +1,6 @@
 {
   "version": "2",
-  "exportedAt": "2026-03-13T14:01:04.031Z",
+  "exportedAt": "2026-03-13T15:07:08.965Z",
   "categories": [
     {
       "id": 1,
@@ -99,20 +99,6 @@
       "deletedBy": null
     },
     {
-      "id": 35,
-      "invoiceNo": "INV-003",
-      "customerName": "Test",
-      "date": "2026-03-13",
-      "total": "135.00",
-      "deliveryId": 1,
-      "note": "Received 1 រទេះពិការធម្មតា X9 from INV-002 (Alice Wong)\nTransfer reversed — 1 រទេះពិការធម្មតា X9 removed (returned to INV-002)",
-      "status": "Completed",
-      "packingGroups": "[{\"id\":\"qh63683\",\"itemIndices\":[0,1,2],\"packageType\":\"កេះ\",\"packageQty\":1}]",
-      "createdAt": "2026-03-13T02:39:11.209Z",
-      "deletedAt": null,
-      "deletedBy": null
-    },
-    {
       "id": 41,
       "invoiceNo": "INV-007",
       "customerName": "Test",
@@ -123,8 +109,22 @@
       "status": "Completed",
       "packingGroups": null,
       "createdAt": "2026-03-13T12:50:43.092Z",
-      "deletedAt": null,
-      "deletedBy": null
+      "deletedAt": "2026-03-13T14:37:15.720Z",
+      "deletedBy": "Admin"
+    },
+    {
+      "id": 35,
+      "invoiceNo": "INV-003",
+      "customerName": "Test",
+      "date": "2026-03-13",
+      "total": "135.00",
+      "deliveryId": 1,
+      "note": "Received 1 រទេះពិការធម្មតា X9 from INV-002 (Alice Wong)\nTransfer reversed — 1 រទេះពិការធម្មតា X9 removed (returned to INV-002)",
+      "status": "Completed",
+      "packingGroups": "[{\"id\":\"qh63683\",\"itemIndices\":[0,1,2],\"packageType\":\"កេះ\",\"packageQty\":1}]",
+      "createdAt": "2026-03-13T02:39:11.209Z",
+      "deletedAt": "2026-03-13T14:37:20.741Z",
+      "deletedBy": "Admin"
     },
     {
       "id": 39,
@@ -137,8 +137,8 @@
       "status": "Completed",
       "packingGroups": null,
       "createdAt": "2026-03-13T07:51:23.357Z",
-      "deletedAt": null,
-      "deletedBy": null
+      "deletedAt": "2026-03-13T14:37:23.586Z",
+      "deletedBy": "Admin"
     },
     {
       "id": 40,
@@ -777,6 +777,36 @@
       "description": "Created invoice INV-007 for Test",
       "date": "2026-03-13",
       "createdAt": "2026-03-13T12:50:43.184Z"
+    },
+    {
+      "id": 78,
+      "user": "Admin",
+      "action": "DELETE",
+      "entity": "invoice",
+      "entityId": 41,
+      "description": "Deleted invoice INV-007 (Test)",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T14:37:15.918Z"
+    },
+    {
+      "id": 79,
+      "user": "Admin",
+      "action": "DELETE",
+      "entity": "invoice",
+      "entityId": 35,
+      "description": "Deleted invoice INV-003 (Test)",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T14:37:20.742Z"
+    },
+    {
+      "id": 80,
+      "user": "Admin",
+      "action": "DELETE",
+      "entity": "invoice",
+      "entityId": 39,
+      "description": "Deleted invoice INV-005 (Alice Wong)",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T14:37:23.587Z"
     }
   ]
 }
