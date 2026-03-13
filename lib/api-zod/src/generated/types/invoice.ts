@@ -13,6 +13,7 @@ export interface Invoice {
   date: string;
   createdAt?: string | null;
   total: number;
+  deposit: number;
   deliveryId?: number | null;
   deliveryNo?: string | null;
   note?: string | null;

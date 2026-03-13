@@ -77,6 +77,7 @@ export interface Invoice {
   date: string;
   createdAt?: string | null;
   total: number;
+  deposit: number;
   deliveryId?: number | null;
   deliveryNo?: string | null;
   note?: string | null;
@@ -89,6 +90,7 @@ export type InvoiceWithItems = Invoice & {
 export interface CreateInvoiceInput {
   customerName: string;
   date: string;
+  deposit?: number | null;
   deliveryId?: number | null;
   note?: string | null;
   items: InvoiceItemInput[];

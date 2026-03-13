@@ -156,6 +156,7 @@ export const GetInvoicesResponseItem = zod.object({
   date: zod.string(),
   createdAt: zod.string().nullish(),
   total: zod.number(),
+  deposit: zod.number(),
   deliveryId: zod.number().nullish(),
   deliveryNo: zod.string().nullish(),
   note: zod.string().nullish(),
@@ -168,6 +169,7 @@ export const GetInvoicesResponse = zod.array(GetInvoicesResponseItem);
 export const CreateInvoiceBody = zod.object({
   customerName: zod.string(),
   date: zod.string(),
+  deposit: zod.number().nullish(),
   deliveryId: zod.number().nullish(),
   note: zod.string().nullish(),
   items: zod.array(
@@ -194,6 +196,7 @@ export const GetInvoiceResponse = zod
     date: zod.string(),
     createdAt: zod.string().nullish(),
     total: zod.number(),
+    deposit: zod.number(),
     deliveryId: zod.number().nullish(),
     deliveryNo: zod.string().nullish(),
     note: zod.string().nullish(),
@@ -225,6 +228,7 @@ export const UpdateInvoiceParams = zod.object({
 export const UpdateInvoiceBody = zod.object({
   customerName: zod.string(),
   date: zod.string(),
+  deposit: zod.number().nullish(),
   deliveryId: zod.number().nullish(),
   note: zod.string().nullish(),
   items: zod.array(
@@ -243,6 +247,7 @@ export const UpdateInvoiceResponse = zod.object({
   date: zod.string(),
   createdAt: zod.string().nullish(),
   total: zod.number(),
+  deposit: zod.number(),
   deliveryId: zod.number().nullish(),
   deliveryNo: zod.string().nullish(),
   note: zod.string().nullish(),
@@ -448,6 +453,7 @@ export const GetDeliveryDetailResponse = zod.object({
             date: zod.string(),
             createdAt: zod.string().nullish(),
             total: zod.number(),
+            deposit: zod.number(),
             deliveryId: zod.number().nullish(),
             deliveryNo: zod.string().nullish(),
             note: zod.string().nullish(),
@@ -629,6 +635,7 @@ export const GetDashboardResponse = zod.object({
       date: zod.string(),
       createdAt: zod.string().nullish(),
       total: zod.number(),
+      deposit: zod.number(),
       deliveryId: zod.number().nullish(),
       deliveryNo: zod.string().nullish(),
       note: zod.string().nullish(),

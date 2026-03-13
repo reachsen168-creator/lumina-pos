@@ -16,6 +16,7 @@ async function getInvoiceWithItems(id: number) {
       date: invoicesTable.date,
       createdAt: invoicesTable.createdAt,
       total: invoicesTable.total,
+      deposit: invoicesTable.deposit,
       deliveryId: invoicesTable.deliveryId,
       deliveryNo: deliveriesTable.deliveryNo,
       note: invoicesTable.note,
@@ -43,6 +44,7 @@ async function getInvoiceWithItems(id: number) {
   return {
     ...invoice,
     total: parseFloat(invoice.total as any),
+    deposit: parseFloat(invoice.deposit as any),
     createdAt: invoice.createdAt ? invoice.createdAt.toISOString() : null,
     deliveryId: invoice.deliveryId,
     deliveryNo: invoice.deliveryNo || null,
@@ -146,6 +148,7 @@ router.get("/", async (req, res) => {
       date: invoicesTable.date,
       createdAt: invoicesTable.createdAt,
       total: invoicesTable.total,
+      deposit: invoicesTable.deposit,
       deliveryId: invoicesTable.deliveryId,
       deliveryNo: deliveriesTable.deliveryNo,
       note: invoicesTable.note,
@@ -158,6 +161,7 @@ router.get("/", async (req, res) => {
   res.json(invoices.map(i => ({
     ...i,
     total: parseFloat(i.total as any),
+    deposit: parseFloat(i.deposit as any),
     createdAt: i.createdAt ? i.createdAt.toISOString() : null,
     deliveryNo: i.deliveryNo || null,
     note: i.note || null,
@@ -174,13 +178,14 @@ router.get("/:id", async (req, res) => {
 // ── CREATE ────────────────────────────────────────────────────────────────────
 
 router.post("/", async (req, res) => {
-  const { customerName, date, deliveryId, note, items } = req.body;
+  const { customerName, date, deliveryId, note, deposit, items } = req.body;
   if (!customerName || !date || !items?.length) {
     return res.status(400).json({ error: "customerName, date, and items required" });
   }
 
   const invoiceNo = await nextInvoiceNo();
   const total = items.reduce((sum: number, item: any) => sum + item.qty * item.price, 0);
+  const depositVal = parseFloat(String(deposit ?? 0)) || 0;
 
   let invoiceId: number;
 
@@ -188,7 +193,7 @@ router.post("/", async (req, res) => {
   await db.transaction(async (tx) => {
     const [invoice] = await tx
       .insert(invoicesTable)
-      .values({ invoiceNo, customerName, date, total: String(total), deliveryId: deliveryId || null, note: note || null })
+      .values({ invoiceNo, customerName, date, total: String(total), deposit: String(depositVal), deliveryId: deliveryId || null, note: note || null })
       .returning();
 
     invoiceId = invoice.id;
@@ -218,7 +223,7 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
-  const { customerName, date, deliveryId, note, items } = req.body;
+  const { customerName, date, deliveryId, note, deposit, items } = req.body;
 
   await db.transaction(async (tx) => {
     // 1. Fetch old items to restore their stock
@@ -232,9 +237,10 @@ router.put("/:id", async (req, res) => {
 
     // 3. Update invoice header
     const total = (items || []).reduce((sum: number, item: any) => sum + item.qty * item.price, 0);
+    const depositVal = parseFloat(String(deposit ?? 0)) || 0;
     await tx
       .update(invoicesTable)
-      .set({ customerName, date, total: String(total), deliveryId: deliveryId || null, note: note || null })
+      .set({ customerName, date, total: String(total), deposit: String(depositVal), deliveryId: deliveryId || null, note: note || null })
       .where(eq(invoicesTable.id, id));
 
     // 4. Replace all items
@@ -297,7 +303,7 @@ router.post("/:id/duplicate", async (req, res) => {
   await db.transaction(async (tx) => {
     const [newInvoice] = await tx
       .insert(invoicesTable)
-      .values({ invoiceNo, customerName: original.customerName, date: today, total: String(original.total), deliveryId: null, note: original.note })
+      .values({ invoiceNo, customerName: original.customerName, date: today, total: String(original.total), deposit: String(original.deposit), deliveryId: null, note: original.note })
       .returning();
 
     newInvoiceId = newInvoice.id;

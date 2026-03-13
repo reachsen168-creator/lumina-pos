@@ -10,6 +10,7 @@ import type { InvoiceItemInput } from "./invoiceItemInput";
 export interface CreateInvoiceInput {
   customerName: string;
   date: string;
+  deposit?: number | null;
   deliveryId?: number | null;
   note?: string | null;
   items: InvoiceItemInput[];
