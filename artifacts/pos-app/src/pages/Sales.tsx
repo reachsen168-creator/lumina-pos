@@ -41,9 +41,6 @@ function buildText(inv: FullInvoice, showDelivery: boolean): string {
   const dateStr = safeFormatDate(inv.createdAt ?? inv.date, "dd MMMM yyyy HH:mm");
 
   const header = [
-    "VTN ONLINE SHOP",
-    "Phone: 077598680 / 0966426104",
-    line,
     `Invoice No. : ${inv.invoiceNo}`,
     `Customer    : ${inv.customerName}`,
     `Date & Time : ${dateStr}`,

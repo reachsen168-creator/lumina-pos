@@ -47,41 +47,6 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
       padding: "40px 48px 48px",
       boxSizing: "border-box",
     },
-    headerRow: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      marginBottom: 28,
-      paddingBottom: 20,
-      borderBottom: "2px solid #1a1a1a",
-    },
-    companyName: {
-      fontSize: 26,
-      fontWeight: 800,
-      letterSpacing: 1,
-      color: "#1a1a1a",
-      margin: 0,
-    },
-    companyTagline: {
-      fontSize: 11,
-      color: "#666",
-      marginTop: 4,
-    },
-    invoiceTitle: {
-      fontSize: 22,
-      fontWeight: 700,
-      color: "#1a1a1a",
-      textAlign: "right" as const,
-      letterSpacing: 2,
-      textTransform: "uppercase" as const,
-      margin: 0,
-    },
-    invoiceNo: {
-      fontSize: 13,
-      color: "#555",
-      textAlign: "right" as const,
-      marginTop: 4,
-    },
     metaGrid: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
@@ -161,17 +126,6 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
 
   return (
     <div ref={ref} style={s.root}>
-      {/* Company + Invoice Title */}
-      <div style={s.headerRow}>
-        <div>
-          <p style={s.companyName}>VTN ONLINE SHOP</p>
-          <p style={s.companyTagline}>Phone: 077598680 / 0966426104</p>
-        </div>
-        <div>
-          <p style={s.invoiceTitle}>Invoice</p>
-          <p style={s.invoiceNo}>{invoice.invoiceNo}</p>
-        </div>
-      </div>
 
       {/* Meta */}
       <div style={s.metaGrid}>
