@@ -321,5 +321,40 @@ router.post("/:id/duplicate", async (req, res) => {
   res.status(201).json(full);
 });
 
+// ── GET /api/invoices/:id/packing ──────────────────────────────────────────
+router.get("/:id/packing", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+
+  const [row] = await db
+    .select({ packingGroups: invoicesTable.packingGroups })
+    .from(invoicesTable)
+    .where(eq(invoicesTable.id, id));
+
+  if (!row) return res.status(404).json({ error: "Not found" });
+
+  let groups: unknown[] = [];
+  try { groups = row.packingGroups ? JSON.parse(row.packingGroups) : []; } catch {}
+  res.json({ groups });
+});
+
+// ── PUT /api/invoices/:id/packing ──────────────────────────────────────────
+router.put("/:id/packing", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+
+  const { groups } = req.body;
+  if (!Array.isArray(groups)) return res.status(400).json({ error: "groups must be an array" });
+
+  const [row] = await db
+    .update(invoicesTable)
+    .set({ packingGroups: JSON.stringify(groups) })
+    .where(eq(invoicesTable.id, id))
+    .returning({ id: invoicesTable.id });
+
+  if (!row) return res.status(404).json({ error: "Not found" });
+  res.json({ ok: true });
+});
+
 export { getInvoiceWithItems };
 export default router;

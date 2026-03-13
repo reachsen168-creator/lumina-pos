@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { Link } from "wouter";
 import { PageHeader } from "@/components/ui/page-header";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Plus, Trash2, Share2, Package } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Share2, Package, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { DeliveryPackingPreview, type PackageGroup } from "@/components/DeliveryPackingPreview";
 import type { FullInvoice } from "@/components/InvoicePreview";
@@ -23,40 +23,73 @@ export default function DeliveryPacking() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const [invoice, setInvoice] = useState<FullInvoice | null>(null);
-  const [loading, setLoading]   = useState(false);
-  const [fetched, setFetched]   = useState(false);
+  const [invoice, setInvoice]     = useState<FullInvoice | null>(null);
+  const [loading, setLoading]     = useState(true);
 
-  const [groups, setGroups]                     = useState<PackageGroup[]>([]);
-  const [selected, setSelected]                 = useState<Set<number>>(new Set());
-  const [newPkgType, setNewPkgType]             = useState(PACKAGE_TYPES[0]);
-  const [customType, setCustomType]             = useState("");
-  const [newPkgQty, setNewPkgQty]               = useState(1);
-  const [sharing, setSharing]                   = useState(false);
-  const [showDelivery, setShowDelivery]         = useState(true);
+  const [groups, setGroups]               = useState<PackageGroup[]>([]);
+  const [selected, setSelected]           = useState<Set<number>>(new Set());
+  const [newPkgType, setNewPkgType]       = useState(PACKAGE_TYPES[0]);
+  const [customType, setCustomType]       = useState("");
+  const [newPkgQty, setNewPkgQty]         = useState(1);
+  const [sharing, setSharing]             = useState(false);
+  const [saving, setSaving]               = useState(false);
+  const [showDelivery, setShowDelivery]   = useState(true);
 
   const previewRef = useRef<HTMLDivElement>(null);
+  // Track whether groups have been dirty since last save
+  const savedGroupsRef = useRef<string>("[]");
 
-  // Fetch invoice once on mount
-  if (!fetched && !loading) {
-    setLoading(true);
-    setFetched(true);
-    fetch(`/api/invoices/${id}`)
-      .then(r => r.ok ? r.json() : Promise.reject("Not found"))
-      .then((inv: FullInvoice) => { setInvoice(inv); setLoading(false); })
-      .catch(() => { toast({ title: "Invoice not found", variant: "destructive" }); setLoading(false); setLocation("/sales"); });
-  }
+  // ── Load invoice + saved packing on mount ──────────────────────────────
+  useEffect(() => {
+    if (!id) return;
+    Promise.all([
+      fetch(`/api/invoices/${id}`).then(r => r.ok ? r.json() : Promise.reject("Invoice not found")),
+      fetch(`/api/invoices/${id}/packing`).then(r => r.ok ? r.json() : { groups: [] }),
+    ])
+      .then(([inv, packing]: [FullInvoice, { groups: PackageGroup[] }]) => {
+        setInvoice(inv);
+        const saved = Array.isArray(packing.groups) ? packing.groups : [];
+        setGroups(saved);
+        savedGroupsRef.current = JSON.stringify(saved);
+        setLoading(false);
+      })
+      .catch(err => {
+        toast({ title: String(err), variant: "destructive" });
+        setLocation("/sales");
+      });
+  }, [id]);
+
+  // ── Save helper ────────────────────────────────────────────────────────
+  const saveGroups = useCallback(async (groupsToSave: PackageGroup[]) => {
+    if (!id) return;
+    const json = JSON.stringify(groupsToSave);
+    if (json === savedGroupsRef.current) return; // no change
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/invoices/${id}/packing`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groups: groupsToSave }),
+      });
+      if (!r.ok) throw new Error("Save failed");
+      savedGroupsRef.current = json;
+      toast({ title: "Packing layout saved" });
+    } catch {
+      toast({ title: "Failed to save", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }, [id, toast]);
 
   if (loading || !invoice) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading…</div>;
   }
 
-  /* ── helpers ── */
-
+  // ── Helpers ─────────────────────────────────────────────────────────────
   const assignedIndices = new Set(groups.flatMap(g => g.itemIndices));
 
   const toggleItem = (idx: number) => {
-    if (assignedIndices.has(idx)) return; // already in a group
+    if (assignedIndices.has(idx)) return;
     setSelected(prev => {
       const n = new Set(prev);
       n.has(idx) ? n.delete(idx) : n.add(idx);
@@ -82,8 +115,7 @@ export default function DeliveryPacking() {
     setGroups(prev => prev.filter(g => g.id !== gid));
   };
 
-  const resolveType = () => newPkgType === "ផ្សេងៗ" ? (customType || "ផ្សេងៗ") : newPkgType;
-
+  // ── Share image ──────────────────────────────────────────────────────────
   const handleShare = async () => {
     if (!previewRef.current) return;
     setSharing(true);
@@ -121,13 +153,12 @@ export default function DeliveryPacking() {
     }
   };
 
-  /* ── render ── */
-
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <PageHeader
         title={`Delivery Packing — ${invoice.invoiceNo}`}
-        description={`${invoice.customerName}`}
+        description={invoice.customerName}
         action={
           <Link href="/sales">
             <Button variant="outline" className="h-10 gap-2">
@@ -226,7 +257,19 @@ export default function DeliveryPacking() {
       {/* ── Step 2: Groups list ── */}
       {groups.length > 0 && (
         <Card className="border-none ring-1 ring-border shadow-md p-5 space-y-3">
-          <h2 className="font-semibold text-base">Package Groups ({groups.length})</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-base">Package Groups ({groups.length})</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={saving}
+              className="h-8 gap-2 text-xs"
+              onClick={() => saveGroups(groups)}
+            >
+              <Save className="w-3.5 h-3.5" />
+              {saving ? "Saving…" : "Save Layout"}
+            </Button>
+          </div>
           <div className="space-y-2">
             {groups.map((g, gi) => (
               <div key={g.id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/40 border border-border">
@@ -273,7 +316,6 @@ export default function DeliveryPacking() {
           </div>
         </div>
 
-        {/* Scrollable preview wrapper */}
         <div className="overflow-x-auto rounded-xl border border-border bg-white">
           <DeliveryPackingPreview
             ref={previewRef}
