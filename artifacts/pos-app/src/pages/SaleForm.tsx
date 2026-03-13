@@ -6,6 +6,7 @@ import {
   useListCustomers, useCreateCustomer,
   getLastSalePrice,
   getGetInvoicesQueryKey,
+  getGetInvoiceQueryKey,
   getListCustomersQueryKey,
 } from "@workspace/api-client-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -26,7 +27,7 @@ export default function SaleForm() {
   const queryClient = useQueryClient();
 
   // Fetches
-  const { data: existingInvoice, isLoading: loadingInv } = useGetInvoice(Number(id), { query: { enabled: isEdit } });
+  const { data: existingInvoice, isLoading: loadingInv } = useGetInvoice(Number(id), { query: { queryKey: getGetInvoiceQueryKey(Number(id)), enabled: isEdit } });
   const { data: allProducts = [] } = useGetProducts();
   const { data: deliveries = [] } = useGetDeliveries();
   const { data: allCustomers = [] } = useListCustomers({});

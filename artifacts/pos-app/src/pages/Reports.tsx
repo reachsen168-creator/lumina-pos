@@ -70,7 +70,7 @@ export default function Reports() {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-muted-foreground text-sm font-medium mb-1 uppercase tracking-wider">Invoices Created</p>
-                    <h3 className="text-4xl font-display font-bold text-foreground">{report?.invoiceCount || 0}</h3>
+                    <h3 className="text-4xl font-display font-bold text-foreground">{report?.totalInvoices || 0}</h3>
                   </div>
                   <div className="p-3 bg-accent/10 rounded-2xl">
                     <Receipt className="w-6 h-6 text-accent" />
@@ -84,7 +84,7 @@ export default function Reports() {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-muted-foreground text-sm font-medium mb-1 uppercase tracking-wider">Items Sold</p>
-                    <h3 className="text-4xl font-display font-bold text-foreground">{report?.productsSold || 0}</h3>
+                    <h3 className="text-4xl font-display font-bold text-foreground">{report?.topProducts?.reduce((s, p) => s + p.totalQty, 0) ?? 0}</h3>
                   </div>
                   <div className="p-3 bg-blue-500/10 rounded-2xl">
                     <Package className="w-6 h-6 text-blue-500" />
