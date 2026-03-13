@@ -102,6 +102,9 @@ async function captureInvoiceCanvas(
     root.render(<InvoicePreview invoice={inv} showDelivery={showDelivery} />);
   });
 
+  // Wait for all fonts (including Noto Sans Khmer) to finish loading
+  await document.fonts.ready;
+
   try {
     const el = container.firstElementChild as HTMLElement;
     return await html2canvas(el, {

@@ -41,7 +41,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
     root: {
       width: 800,
       backgroundColor: "#ffffff",
-      fontFamily: "'Arial', 'Helvetica', sans-serif",
+      fontFamily: "'Noto Sans Khmer', 'Arial', sans-serif",
       fontSize: 13,
       color: "#1a1a1a",
       padding: "40px 48px 48px",
