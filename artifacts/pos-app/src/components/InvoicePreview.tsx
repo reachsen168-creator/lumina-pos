@@ -127,6 +127,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
   return (
     <div ref={ref} style={s.root}>
 
+      {/* Khmer title */}
+      <p style={{ textAlign: "center", fontWeight: 800, fontSize: 28, marginBottom: 24, color: "#1a1a1a" }}>
+        វិក័យបត្រ
+      </p>
+
       {/* Meta */}
       <div style={s.metaGrid}>
         <div style={s.metaRow}>

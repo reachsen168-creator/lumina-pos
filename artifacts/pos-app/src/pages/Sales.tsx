@@ -41,6 +41,7 @@ function buildText(inv: FullInvoice, showDelivery: boolean): string {
   const dateStr = safeFormatDate(inv.createdAt ?? inv.date, "dd MMMM yyyy HH:mm");
 
   const header = [
+    "វិក័យបត្រ",
     `Invoice No. : ${inv.invoiceNo}`,
     `Customer    : ${inv.customerName}`,
     `Date & Time : ${dateStr}`,
