@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { DateShortcuts } from "@/components/ui/date-shortcuts";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
@@ -31,7 +32,7 @@ function safeFormatDate(val: string | null | undefined, fmt: string): string {
 
 const NUM_ROWS = 18;
 
-function buildText(inv: FullInvoice): string {
+function buildText(inv: FullInvoice, showDelivery: boolean): string {
   const line = "─".repeat(60);
   const thin = "─".repeat(60);
   const dateStr = safeFormatDate(inv.createdAt ?? inv.date, "dd MMMM yyyy HH:mm");
@@ -42,8 +43,8 @@ function buildText(inv: FullInvoice): string {
     `Invoice No. : ${inv.invoiceNo}`,
     `Customer    : ${inv.customerName}`,
     `Date & Time : ${dateStr}`,
-    `Delivery    : ${inv.deliveryNo ?? "—"}`,
   ];
+  if (showDelivery) header.push(`Delivery    : ${inv.deliveryNo ?? "—"}`);
   if (inv.note) header.push(`Note        : ${inv.note}`);
 
   const colNo    = "No ".padEnd(4);
@@ -84,6 +85,7 @@ export default function Sales() {
   const [search, setSearch]     = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo]     = useState("");
+  const [showDelivery, setShowDelivery]     = useState(true);
   const [viewInvoice, setViewInvoice]       = useState<FullInvoice | null>(null);
   const [captureInvoice, setCaptureInvoice] = useState<FullInvoice | null>(null);
 
@@ -152,7 +154,7 @@ export default function Sales() {
   const handleCopy = async (id: number) => {
     try {
       const inv = await fetchFull(id);
-      await navigator.clipboard.writeText(buildText(inv));
+      await navigator.clipboard.writeText(buildText(inv, showDelivery));
       toast({ title: "Invoice copied to clipboard" });
     } catch {
       toast({ title: "Failed to copy", variant: "destructive" });
@@ -162,7 +164,7 @@ export default function Sales() {
   const handleExportText = async (id: number, invoiceNo: string) => {
     try {
       const inv = await fetchFull(id);
-      const blob = new Blob([buildText(inv)], { type: "text/plain" });
+      const blob = new Blob([buildText(inv, showDelivery)], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -197,7 +199,7 @@ export default function Sales() {
             pointerEvents: "none",
           }}
         >
-          <InvoicePreview ref={captureRef} invoice={captureInvoice} />
+          <InvoicePreview ref={captureRef} invoice={captureInvoice} showDelivery={showDelivery} />
         </div>
       )}
 
@@ -233,6 +235,21 @@ export default function Sales() {
         </div>
 
         <DateShortcuts onSelect={(f, t) => { setDateFrom(f); setDateTo(t); }} />
+
+        {/* Export options */}
+        <div className="flex items-center gap-2 pt-1">
+          <Checkbox
+            id="show-delivery"
+            checked={showDelivery}
+            onCheckedChange={(v) => setShowDelivery(v === true)}
+          />
+          <label
+            htmlFor="show-delivery"
+            className="text-sm text-muted-foreground cursor-pointer select-none"
+          >
+            Show Delivery Name in exports
+          </label>
+        </div>
 
         {/* Invoice grid */}
         <div className="mt-6">
@@ -336,7 +353,7 @@ export default function Sales() {
           <div className="overflow-auto max-h-[80vh] p-6 pt-4">
             {viewInvoice && (
               <div className="overflow-x-auto">
-                <InvoicePreview invoice={viewInvoice} />
+                <InvoicePreview invoice={viewInvoice} showDelivery={showDelivery} />
               </div>
             )}
           </div>

@@ -29,9 +29,10 @@ export interface FullInvoice {
 
 interface Props {
   invoice: FullInvoice;
+  showDelivery?: boolean;
 }
 
-export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice }, ref) => {
+export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, showDelivery = true }, ref) => {
   const rows = Array.from({ length: NUM_ROWS }, (_, i) => invoice.items[i] ?? null);
   const dateStr = safeDate(invoice.createdAt ?? invoice.date, "dd MMMM yyyy HH:mm");
 
@@ -186,10 +187,12 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice }, re
           <span style={s.metaLabel}>Invoice No.</span>
           <span style={s.metaValue}>{invoice.invoiceNo}</span>
         </div>
-        <div style={s.metaRow}>
-          <span style={s.metaLabel}>Delivery</span>
-          <span style={s.metaValue}>{invoice.deliveryNo ?? "—"}</span>
-        </div>
+        {showDelivery && (
+          <div style={s.metaRow}>
+            <span style={s.metaLabel}>Delivery</span>
+            <span style={s.metaValue}>{invoice.deliveryNo ?? "—"}</span>
+          </div>
+        )}
         {invoice.note && (
           <div style={{ ...s.metaRow, gridColumn: "1 / -1" }}>
             <span style={s.metaLabel}>Note</span>
