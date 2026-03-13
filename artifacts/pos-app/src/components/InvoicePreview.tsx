@@ -164,8 +164,8 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
       {/* Company + Invoice Title */}
       <div style={s.headerRow}>
         <div>
-          <p style={s.companyName}>LUMINA POS</p>
-          <p style={s.companyTagline}>Sales &amp; Inventory Management</p>
+          <p style={s.companyName}>VTN ONLINE SHOP</p>
+          <p style={s.companyTagline}>Phone: 077598680 / 0966426104</p>
         </div>
         <div>
           <p style={s.invoiceTitle}>Invoice</p>
