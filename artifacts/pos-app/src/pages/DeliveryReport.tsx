@@ -346,7 +346,7 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
           >
             {copied
               ? <><Check className="w-4 h-4" /> Copied!</>
-              : <><Copy className="w-4 h-4" /> Copy as Text</>
+              : <><Copy className="w-4 h-4" /> Copy Text</>
             }
           </Button>
         </div>
