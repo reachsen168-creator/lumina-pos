@@ -1,62 +1,93 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  useGetInvoices, useDeleteInvoice, useDuplicateInvoice, getGetInvoicesQueryKey
+  useGetInvoices, useDeleteInvoice, getGetInvoicesQueryKey
 } from "@workspace/api-client-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { DateShortcuts } from "@/components/ui/date-shortcuts";
-import { Plus, Search, FileText, Copy, Trash2, Edit, Truck, Clipboard, Download } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle
+} from "@/components/ui/dialog";
+import {
+  Plus, Search, FileText, Trash2, Edit, Truck,
+  Eye, Clipboard, FileDown, Image
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { InvoicePreview, type FullInvoice } from "@/components/InvoicePreview";
+import html2canvas from "html2canvas";
 
-function safeFormatDate(value: string | null | undefined, fmt: string): string {
-  if (!value) return "N/A";
-  const d = new Date(value);
+/* ── helpers ─────────────────────────────────────────────────────────────── */
+
+function safeFormatDate(val: string | null | undefined, fmt: string): string {
+  if (!val) return "N/A";
+  const d = new Date(val);
   return isNaN(d.getTime()) ? "N/A" : format(d, fmt);
 }
 
-function buildInvoiceText(inv: any): string {
-  const line = "─".repeat(44);
-  const dateLine = safeFormatDate(inv.createdAt ?? inv.date, "dd MMMM yyyy HH:mm");
+const NUM_ROWS = 18;
 
-  const rows = (inv.items ?? []).map((item: any) => {
-    const name = String(item.productName ?? "").padEnd(22).slice(0, 22);
-    const qty  = String(item.qty).padStart(4);
-    const price = `$${Number(item.price).toFixed(2)}`.padStart(8);
-    const sub   = `$${Number(item.subtotal).toFixed(2)}`.padStart(10);
-    return `  ${name} ${qty} ${price} ${sub}`;
-  });
+function buildText(inv: FullInvoice): string {
+  const line = "─".repeat(60);
+  const thin = "─".repeat(60);
+  const dateStr = safeFormatDate(inv.createdAt ?? inv.date, "dd MMMM yyyy HH:mm");
 
-  const parts: string[] = [
+  const header = [
     "LUMINA POS",
     line,
-    `Invoice : ${inv.invoiceNo}`,
-    `Date    : ${dateLine}`,
-    `Customer: ${inv.customerName}`,
+    `Invoice No. : ${inv.invoiceNo}`,
+    `Customer    : ${inv.customerName}`,
+    `Date & Time : ${dateStr}`,
+    `Delivery    : ${inv.deliveryNo ?? "—"}`,
   ];
+  if (inv.note) header.push(`Note        : ${inv.note}`);
 
-  if (inv.deliveryNo) parts.push(`Delivery: ${inv.deliveryNo}`);
-  if (inv.note)       parts.push(`Note    : ${inv.note}`);
+  const colNo    = "No ".padEnd(4);
+  const colName  = "Name of Good".padEnd(26);
+  const colQty   = "Qty".padStart(6);
+  const colPrice = "Unit Price".padStart(12);
+  const colAmt   = "Amount".padStart(12);
+  const tableHeader = `  ${colNo}${colName}${colQty}${colPrice}${colAmt}`;
 
-  parts.push(line);
-  parts.push("  Product                 Qty    Price   Subtotal");
-  parts.push("  " + "─".repeat(42));
-  parts.push(...rows);
-  parts.push(line);
-  parts.push(`  TOTAL${" ".repeat(34)}$${Number(inv.total).toFixed(2)}`);
-  parts.push(line);
+  const rows = Array.from({ length: NUM_ROWS }, (_, i) => {
+    const item = inv.items[i];
+    if (!item) return `  ${" ".repeat(4)}${" ".repeat(26)}${" ".repeat(6)}${" ".repeat(12)}${" ".repeat(12)}`;
+    const no    = String(i + 1).padEnd(4);
+    const name  = item.productName.padEnd(26).slice(0, 26);
+    const qty   = String(item.qty).padStart(6);
+    const price = `$${Number(item.price).toFixed(2)}`.padStart(12);
+    const amt   = `$${Number(item.subtotal).toFixed(2)}`.padStart(12);
+    return `  ${no}${name}${qty}${price}${amt}`;
+  });
 
-  return parts.join("\n");
+  const total = `$${Number(inv.total).toFixed(2)}`.padStart(12);
+
+  return [
+    ...header,
+    line,
+    tableHeader,
+    "  " + thin,
+    ...rows,
+    line,
+    `${"TOTAL".padStart(48 + 12)}${total}`,
+    line,
+  ].join("\n");
 }
 
+/* ── component ───────────────────────────────────────────────────────────── */
+
 export default function Sales() {
-  const [search, setSearch] = useState("");
+  const [search, setSearch]     = useState("");
   const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateTo, setDateTo]     = useState("");
+  const [viewInvoice, setViewInvoice]       = useState<FullInvoice | null>(null);
+  const [captureInvoice, setCaptureInvoice] = useState<FullInvoice | null>(null);
+
+  const captureRef = useRef<HTMLDivElement>(null);
 
   const { data: invoices = [], isLoading } = useGetInvoices({
     search: search || undefined,
@@ -67,10 +98,39 @@ export default function Sales() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const deleteMut = useDeleteInvoice();
-  const dupMut = useDuplicateInvoice();
+
+  /* capture effect: fires when captureInvoice is set and the hidden div renders */
+  useEffect(() => {
+    if (!captureInvoice || !captureRef.current) return;
+
+    const el = captureRef.current;
+    html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
+      canvas.toBlob(blob => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${captureInvoice.invoiceNo}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: `Exported ${captureInvoice.invoiceNo}.png` });
+        setCaptureInvoice(null);
+      }, "image/png");
+    }).catch(() => {
+      toast({ title: "Failed to generate image", variant: "destructive" });
+      setCaptureInvoice(null);
+    });
+  }, [captureInvoice]);
+
+  /* fetch full invoice (with items) */
+  const fetchFull = async (id: number): Promise<FullInvoice> => {
+    const res = await fetch(`/api/invoices/${id}`);
+    if (!res.ok) throw new Error("Failed to fetch invoice");
+    return res.json();
+  };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this invoice?")) return;
+    if (!window.confirm("Delete this invoice?")) return;
     try {
       await deleteMut.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getGetInvoicesQueryKey() });
@@ -80,37 +140,29 @@ export default function Sales() {
     }
   };
 
-  const handleDuplicate = async (id: number) => {
+  const handleView = async (id: number) => {
     try {
-      await dupMut.mutateAsync({ id });
-      queryClient.invalidateQueries({ queryKey: getGetInvoicesQueryKey() });
-      toast({ title: "Invoice duplicated" });
+      const inv = await fetchFull(id);
+      setViewInvoice(inv);
     } catch {
-      toast({ title: "Error duplicating", variant: "destructive" });
+      toast({ title: "Failed to load invoice", variant: "destructive" });
     }
-  };
-
-  const fetchFullInvoice = async (id: number) => {
-    const res = await fetch(`/api/invoices/${id}`);
-    if (!res.ok) throw new Error("Failed to fetch invoice");
-    return res.json();
   };
 
   const handleCopy = async (id: number) => {
     try {
-      const inv = await fetchFullInvoice(id);
-      await navigator.clipboard.writeText(buildInvoiceText(inv));
+      const inv = await fetchFull(id);
+      await navigator.clipboard.writeText(buildText(inv));
       toast({ title: "Invoice copied to clipboard" });
     } catch {
-      toast({ title: "Failed to copy invoice", variant: "destructive" });
+      toast({ title: "Failed to copy", variant: "destructive" });
     }
   };
 
-  const handleExport = async (id: number, invoiceNo: string) => {
+  const handleExportText = async (id: number, invoiceNo: string) => {
     try {
-      const inv = await fetchFullInvoice(id);
-      const text = buildInvoiceText(inv);
-      const blob = new Blob([text], { type: "text/plain" });
+      const inv = await fetchFull(id);
+      const blob = new Blob([buildText(inv)], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -119,12 +171,36 @@ export default function Sales() {
       URL.revokeObjectURL(url);
       toast({ title: `Exported ${invoiceNo}.txt` });
     } catch {
-      toast({ title: "Failed to export invoice", variant: "destructive" });
+      toast({ title: "Failed to export", variant: "destructive" });
+    }
+  };
+
+  const handleExportImage = async (id: number) => {
+    try {
+      const inv = await fetchFull(id);
+      setCaptureInvoice(inv);   // triggers the useEffect above
+    } catch {
+      toast({ title: "Failed to load invoice", variant: "destructive" });
     }
   };
 
   return (
     <div className="space-y-6">
+      {/* Hidden div for PNG capture – off-screen, always mounted when needed */}
+      {captureInvoice && (
+        <div
+          style={{
+            position: "fixed",
+            left: -9999,
+            top: -9999,
+            zIndex: -1,
+            pointerEvents: "none",
+          }}
+        >
+          <InvoicePreview ref={captureRef} invoice={captureInvoice} />
+        </div>
+      )}
+
       <PageHeader
         title="Sales & Invoices"
         description="Manage all sale transactions"
@@ -158,10 +234,10 @@ export default function Sales() {
 
         <DateShortcuts onSelect={(f, t) => { setDateFrom(f); setDateTo(t); }} />
 
-        {/* Invoice list */}
+        {/* Invoice grid */}
         <div className="mt-6">
           {isLoading ? (
-            <div className="py-12 text-center text-muted-foreground">Loading invoices...</div>
+            <div className="py-12 text-center text-muted-foreground">Loading invoices…</div>
           ) : invoices.length === 0 ? (
             <div className="py-16 text-center bg-muted/30 rounded-2xl border border-dashed border-border mt-4">
               <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-20" />
@@ -169,11 +245,13 @@ export default function Sales() {
               <p className="text-sm text-muted-foreground mt-1">Adjust filters or create a new sale.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {invoices.map((inv) => (
-                <div key={inv.id} className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col">
-
-                  {/* Header row */}
+                <div
+                  key={inv.id}
+                  className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col"
+                >
+                  {/* Card header */}
                   <div className="flex justify-between items-start mb-4 gap-2">
                     <div className="min-w-0">
                       <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-1 rounded-md mb-2 inline-block">
@@ -194,14 +272,14 @@ export default function Sales() {
                     </div>
                   </div>
 
-                  {/* Action row */}
+                  {/* Action buttons */}
                   <div className="mt-auto pt-4 border-t border-border flex flex-wrap gap-1 items-center">
                     <Button
                       variant="ghost" size="sm"
                       className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
-                      onClick={() => handleDuplicate(inv.id)}
+                      onClick={() => handleView(inv.id)}
                     >
-                      <Copy className="w-3.5 h-3.5 mr-1" /> Duplicate
+                      <Eye className="w-3.5 h-3.5 mr-1" /> View Items
                     </Button>
                     <Button
                       variant="ghost" size="sm"
@@ -213,9 +291,16 @@ export default function Sales() {
                     <Button
                       variant="ghost" size="sm"
                       className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
-                      onClick={() => handleExport(inv.id, inv.invoiceNo)}
+                      onClick={() => handleExportText(inv.id, inv.invoiceNo)}
                     >
-                      <Download className="w-3.5 h-3.5 mr-1" /> Export
+                      <FileDown className="w-3.5 h-3.5 mr-1" /> Export Text
+                    </Button>
+                    <Button
+                      variant="ghost" size="sm"
+                      className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
+                      onClick={() => handleExportImage(inv.id)}
+                    >
+                      <Image className="w-3.5 h-3.5 mr-1" /> Export Image
                     </Button>
 
                     <div className="ml-auto flex gap-1">
@@ -239,6 +324,24 @@ export default function Sales() {
           )}
         </div>
       </Card>
+
+      {/* View Items dialog */}
+      <Dialog open={!!viewInvoice} onOpenChange={(open) => { if (!open) setViewInvoice(null); }}>
+        <DialogContent className="max-w-[900px] w-full p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-5 pb-0">
+            <DialogTitle className="text-base font-semibold">
+              Invoice — {viewInvoice?.invoiceNo}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-auto max-h-[80vh] p-6 pt-4">
+            {viewInvoice && (
+              <div className="overflow-x-auto">
+                <InvoicePreview invoice={viewInvoice} />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
