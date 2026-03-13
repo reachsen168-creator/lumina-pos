@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, invoicesTable, invoiceItemsTable, productsTable, deliveriesTable } from "@workspace/db";
-import { eq, and, gte, lte, ilike, desc, isNull } from "drizzle-orm";
+import { eq, and, gte, lte, ilike, desc, isNull, count } from "drizzle-orm";
 import { logHistory } from "./history.js";
 
 const router = Router();
@@ -304,9 +304,22 @@ router.delete("/:id", async (req, res) => {
 
     await tx.update(invoicesTable).set({ deletedAt: new Date(), deletedBy: "Admin" }).where(eq(invoicesTable.id, id));
 
-    // Soft-delete the linked delivery (if any)
+    // If this invoice was linked to a delivery, check whether any other
+    // non-deleted invoices still belong to that delivery.
+    // If none remain, mark the delivery as "Empty".
     if (inv?.deliveryId) {
-      await tx.update(deliveriesTable).set({ deletedAt: new Date(), deletedBy: "Admin" }).where(eq(deliveriesTable.id, inv.deliveryId));
+      const [{ remaining }] = await tx
+        .select({ remaining: count() })
+        .from(invoicesTable)
+        .where(and(
+          eq(invoicesTable.deliveryId, inv.deliveryId),
+          isNull(invoicesTable.deletedAt),
+        ));
+      if (Number(remaining) === 0) {
+        await tx.update(deliveriesTable)
+          .set({ status: "Empty" })
+          .where(eq(deliveriesTable.id, inv.deliveryId));
+      }
     }
 
     await logHistory("DELETE", "invoice", id, `Deleted invoice ${inv?.invoiceNo || id} (${inv?.customerName || ""})`);
