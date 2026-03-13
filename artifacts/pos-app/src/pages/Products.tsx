@@ -110,7 +110,20 @@ export default function Products() {
 
   const handleImageFile = (file: File) => {
     const reader = new FileReader();
-    reader.onload = (e) => setImage(e.target?.result as string);
+    reader.onload = (e) => {
+      const original = new Image();
+      original.onload = () => {
+        const maxW = 300;
+        const scale = original.width > maxW ? maxW / original.width : 1;
+        const canvas = document.createElement("canvas");
+        canvas.width  = Math.round(original.width  * scale);
+        canvas.height = Math.round(original.height * scale);
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(original, 0, 0, canvas.width, canvas.height);
+        setImage(canvas.toDataURL("image/jpeg", 0.6));
+      };
+      original.src = e.target?.result as string;
+    };
     reader.readAsDataURL(file);
   };
 
