@@ -14,7 +14,7 @@ import { DateShortcuts } from "@/components/ui/date-shortcuts";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus, Search, FileText, Trash2, Edit, Truck,
-  ChevronDown, ChevronUp, Clipboard, FileDown, Share2, Package, AlertTriangle, ShieldAlert, Send
+  ChevronDown, ChevronUp, Clipboard, FileDown, Share2, Package, AlertTriangle, ShieldAlert
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -33,29 +33,6 @@ const NUM_ROWS = 18;
 
 function fmt$(n: number) {
   return `${Number(n).toFixed(2)}$`;
-}
-
-function buildTelegramMessage(inv: FullInvoice): string {
-  const date     = safeFormatDate(inv.createdAt ?? inv.date, "d MMM yyyy HH:mm");
-  const itemLines = inv.items.map(i => {
-    const price    = Number(i.price).toFixed(2);
-    const subtotal = Number(i.subtotal ?? Number(i.price) * Number(i.qty)).toFixed(2);
-    return `${i.productName} = ${i.qty} x $${price} = $${subtotal}`;
-  }).join("\n");
-  const total = Number(inv.total).toFixed(2);
-
-  return [
-    "🧾 SALE INVOICE",
-    "",
-    `Invoice: ${inv.invoiceNo}`,
-    `Date: ${date}`,
-    `Customer: ${inv.customerName}`,
-    "",
-    "Items:",
-    itemLines,
-    "",
-    `Total: $${total}`,
-  ].join("\n");
 }
 
 function buildText(inv: FullInvoice, showDelivery: boolean): string {
@@ -206,18 +183,6 @@ export default function Sales() {
       toast({ title: "Invoice copied to clipboard" });
     } catch {
       toast({ title: "Failed to copy", variant: "destructive" });
-    }
-  };
-
-  const handleSendTelegram = async (id: number) => {
-    try {
-      const inv     = await fetchFull(id);
-      const message = buildTelegramMessage(inv);
-      const encoded = encodeURIComponent(message);
-
-      window.location.href = `https://t.me/share/url?text=${encoded}`;
-    } catch {
-      toast({ title: "Failed to prepare Telegram message", variant: "destructive" });
     }
   };
 
@@ -443,13 +408,6 @@ export default function Sales() {
                         onClick={() => handleShareImage(inv.id, inv.invoiceNo)}
                       >
                         <Share2 className="w-3.5 h-3.5 mr-1" /> Share Image
-                      </Button>
-                      <Button
-                        variant="ghost" size="sm"
-                        className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-8 px-2 text-xs"
-                        onClick={() => handleSendTelegram(inv.id)}
-                      >
-                        <Send className="w-3.5 h-3.5 mr-1" /> Telegram
                       </Button>
                       <Link href={`/sales/${inv.id}/packing`}>
                         <Button
