@@ -213,16 +213,37 @@ export default function SaleForm() {
   const grandTotal = items.reduce((acc, item) => acc + itemSubtotal(item.price, item.qty), 0);
 
   const handleSave = async () => {
-    if (!customerName.trim() || items.length === 0) {
+    // Validate: must have at least one item
+    if (items.length === 0) {
       toast({
-        title: "Validation Error",
-        description: "Customer name and at least one item required.",
+        title: "Cart is empty",
+        description: "Add at least one product before completing the sale.",
         variant: "destructive",
       });
       return;
     }
 
-    // If typed name doesn't exist yet, auto-create the customer
+    // Validate: total must be greater than zero
+    if (grandTotal <= 0) {
+      toast({
+        title: "Invalid total",
+        description: "Grand total must be greater than $0.00.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate: customer name required
+    if (!customerName.trim()) {
+      toast({
+        title: "Customer required",
+        description: "Please enter or select a customer name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // If typed name doesn't match any existing customer, auto-create
     if (!exactMatch && customerName.trim() && !allCustomers.some(c => c.name.toLowerCase() === customerName.toLowerCase())) {
       const today = new Date().toISOString().split("T")[0];
       try {
@@ -230,8 +251,8 @@ export default function SaleForm() {
           data: { name: customerName.trim(), phone: null, note: null, createdDate: today },
         });
         queryClient.invalidateQueries({ queryKey: getListCustomersQueryKey() });
-      } catch (e) {
-        // already exists or ignore
+      } catch {
+        // customer may already exist — safe to continue
       }
     }
 
@@ -253,8 +274,16 @@ export default function SaleForm() {
       }
       queryClient.invalidateQueries({ queryKey: getGetInvoicesQueryKey() });
       setLocation("/sales");
-    } catch (e) {
-      toast({ title: "Error saving invoice", variant: "destructive" });
+    } catch (e: any) {
+      const msg: string =
+        e?.response?.data?.error ||
+        e?.message ||
+        "Something went wrong. Please try again.";
+      toast({
+        title: "Error saving invoice",
+        description: msg,
+        variant: "destructive",
+      });
     }
   };
 
