@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Truck, User, Package, CalendarDays, ChevronRight,
-  FileText, DollarSign, ChevronDown, ChevronsUpDown,
+  FileText, DollarSign, ChevronDown, ChevronsUpDown, Copy, Check,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -44,6 +44,48 @@ function fmt(n: number) {
 }
 
 function today() { return format(new Date(), "yyyy-MM-dd"); }
+
+// ── Plain-text builder ────────────────────────────────────────────────────────
+
+function buildTripText(trip: DeliveryTrip): string {
+  const { delivery, customers, packageSummary, totalBills, grandTotal } = trip;
+  const line = "─".repeat(38);
+
+  let dateStr = delivery.date;
+  try { dateStr = format(new Date(delivery.date), "dd/MM/yyyy"); } catch {}
+
+  const lines: string[] = [];
+
+  lines.push(`Delivery : ${delivery.deliveryNo}`);
+  lines.push(`Date     : ${dateStr}`);
+  if (delivery.driver) lines.push(`Driver   : ${delivery.driver}`);
+  lines.push(line);
+
+  for (const grp of customers) {
+    lines.push(`Customer : ${grp.customerName}`);
+    for (const inv of grp.invoices) {
+      for (const it of inv.items) {
+        lines.push(`  ${it.productName} = ${it.qty} x ${fmt(it.price)}`);
+      }
+    }
+    lines.push("");
+  }
+
+  if (packageSummary.length > 0) {
+    lines.push(line);
+    lines.push("Package Summary");
+    for (const p of packageSummary) {
+      lines.push(`  ${p.qty} ${p.type}`);
+    }
+    lines.push("");
+  }
+
+  lines.push(line);
+  lines.push(`Total Bills  : ${totalBills}`);
+  lines.push(`Total Amount : ${fmt(grandTotal)}`);
+
+  return lines.join("\n");
+}
 
 // ── CustomerRow — collapsible ─────────────────────────────────────────────────
 
@@ -108,6 +150,28 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
   const allNames = customers.map(c => c.customerName);
   const [openSet, setOpenSet] = useState<Set<string>>(() => new Set(allNames));
 
+  // Copy-to-clipboard state
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(buildTripText(trip));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for browsers that block clipboard without interaction
+      const ta = document.createElement("textarea");
+      ta.value = buildTripText(trip);
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [trip]);
+
   const expandAll  = useCallback(() => setOpenSet(new Set(allNames)), [allNames.join(",")]);
   const collapseAll = useCallback(() => setOpenSet(new Set()), []);
   const toggle = useCallback((name: string) =>
@@ -157,9 +221,22 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
           </div>
         </div>
 
-        <div className="text-right">
-          <div className="text-2xl font-bold text-accent">{fmt(grandTotal)}</div>
-          <div className="text-xs text-muted-foreground">{totalBills} bill{totalBills !== 1 ? "s" : ""}</div>
+        <div className="flex flex-col items-end gap-2">
+          <div className="text-right">
+            <div className="text-2xl font-bold text-accent">{fmt(grandTotal)}</div>
+            <div className="text-xs text-muted-foreground">{totalBills} bill{totalBills !== 1 ? "s" : ""}</div>
+          </div>
+          <Button
+            size="sm"
+            variant={copied ? "default" : "outline"}
+            onClick={handleCopy}
+            className={`h-8 gap-1.5 text-xs transition-all ${copied ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : ""}`}
+          >
+            {copied
+              ? <><Check className="w-3.5 h-3.5" /> Copied!</>
+              : <><Copy className="w-3.5 h-3.5" /> Copy as Text</>
+            }
+          </Button>
         </div>
       </div>
 
