@@ -193,27 +193,35 @@ function DeliveryDetail({ id, onBack }: { id: number, onBack: () => void }) {
     let txt = `Delivery: ${delivery.deliveryNo}\n`;
     if (delivery.driver) txt += `Driver: ${delivery.driver}\n`;
     txt += `Date: ${delivery.date.split('T')[0]}\n\n`;
-    customerGroups.forEach((cg: any) => {
-      txt += `${cg.customerName}\n`;
-      cg.invoices.forEach((inv: any) => {
-        inv.items.forEach((item: any) => {
-          if (mode === 'price') {
-            txt += `${item.productName} x${item.qty} - $${Number(item.subtotal).toFixed(2)}\n`;
-          } else {
-            txt += `${item.productName} x${item.qty}\n`;
-          }
+
+    if (mode === 'price') {
+      customerGroups.forEach((cg: any) => {
+        cg.invoices.forEach((inv: any) => {
+          txt += `Inv: ${inv.invoiceNo}\n\n`;
+          inv.items.forEach((item: any) => {
+            const lineTotal = Number(item.qty) * Number(item.price);
+            txt += `${item.productName} = ${item.qty} x $${Number(item.price).toFixed(2)}        $${lineTotal.toFixed(2)}\n`;
+          });
+          txt += `\nTotal: $${Number(inv.total).toFixed(2)}\n\n`;
         });
       });
-      if (mode === 'price') txt += `Total: $${Number(cg.customerTotal).toFixed(2)}\n`;
-      txt += '\n';
-    });
-    txt += `TOTAL ITEMS\n`;
-    productSummary.forEach((ps: any) => {
-      txt += `${ps.productName} = ${ps.totalQty}\n`;
-    });
-    if (mode === 'price') {
-      txt += `\nGrand Total: $${Number(grandTotal).toFixed(2)}\n`;
+      txt += `Grand Total: $${Number(grandTotal).toFixed(2)}\n`;
+    } else {
+      customerGroups.forEach((cg: any) => {
+        txt += `${cg.customerName}\n`;
+        cg.invoices.forEach((inv: any) => {
+          inv.items.forEach((item: any) => {
+            txt += `${item.productName} x${item.qty}\n`;
+          });
+        });
+        txt += '\n';
+      });
+      txt += `TOTAL ITEMS\n`;
+      productSummary.forEach((ps: any) => {
+        txt += `${ps.productName} = ${ps.totalQty}\n`;
+      });
     }
+
     return txt;
   };
 
