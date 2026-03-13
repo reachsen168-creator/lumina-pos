@@ -176,13 +176,39 @@ export default function Sales() {
     }
   };
 
+  const copyText = (text: string) => {
+    const fallback = () => {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      try {
+        document.execCommand("copy");
+        toast({ title: "Copied" });
+      } catch {
+        toast({ title: "Copy failed", variant: "destructive" });
+      }
+      document.body.removeChild(textarea);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text)
+        .then(() => toast({ title: "Copied" }))
+        .catch(() => fallback());
+    } else {
+      fallback();
+    }
+  };
+
   const handleCopy = async (id: number) => {
     try {
       const inv = await fetchFull(id);
-      await navigator.clipboard.writeText(buildText(inv, showDelivery));
-      toast({ title: "Invoice copied to clipboard" });
+      copyText(buildText(inv, showDelivery));
     } catch {
-      toast({ title: "Failed to copy", variant: "destructive" });
+      toast({ title: "Failed to load invoice", variant: "destructive" });
     }
   };
 
