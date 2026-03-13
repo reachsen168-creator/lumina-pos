@@ -3,7 +3,10 @@ import App from "./App";
 import "./index.css";
 import { installFetchInterceptor } from "./lib/autoSave";
 
-// Install fetch interceptor before React renders
 installFetchInterceptor();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js");
+}
 
 createRoot(document.getElementById("root")!).render(<App />);
