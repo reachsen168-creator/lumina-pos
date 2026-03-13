@@ -228,33 +228,36 @@ router.get("/deliveries", async (req, res) => {
   res.json({ date: targetDate, deliveries: result });
 });
 
-/* ── Customer Purchase Report ─────────────────────────────────────────── */
-router.get("/customer", async (req, res) => {
-  const { name = "", dateFrom, dateTo } = req.query as Record<string, string>;
-  const from = dateFrom || "2000-01-01";
+/* ── Full Sales Report ────────────────────────────────────────────────── */
+router.get("/sales-full", async (req, res) => {
+  const { dateFrom, dateTo, customer = "" } = req.query as Record<string, string>;
+  const from = dateFrom || new Date().toISOString().split("T")[0];
   const to   = dateTo   || new Date().toISOString().split("T")[0];
 
-  const conditions: ReturnType<typeof eq>[] = [
-    gte(invoicesTable.date, from) as any,
-    lte(invoicesTable.date, to)  as any,
+  const conditions: any[] = [
+    gte(invoicesTable.date, from),
+    lte(invoicesTable.date, to),
   ];
-  if (name.trim()) {
-    conditions.push(ilike(invoicesTable.customerName, `%${name.trim()}%`) as any);
+  if (customer.trim()) {
+    conditions.push(ilike(invoicesTable.customerName, `%${customer.trim()}%`));
   }
 
   const invoices = await db
     .select({
       id:           invoicesTable.id,
       invoiceNo:    invoicesTable.invoiceNo,
-      customerName: invoicesTable.customerName,
       date:         invoicesTable.date,
+      createdAt:    invoicesTable.createdAt,
+      customerName: invoicesTable.customerName,
       total:        invoicesTable.total,
     })
     .from(invoicesTable)
     .where(and(...conditions))
-    .orderBy(desc(invoicesTable.date));
+    .orderBy(desc(invoicesTable.createdAt));
 
-  const itemSummaryMap = new Map<string, number>();
+  const itemMap     = new Map<string, number>();
+  const customerMap = new Map<string, { totalBills: number; totalAmount: number }>();
+  let totalItemsSold = 0;
   const invoiceDetails = [];
 
   for (const inv of invoices) {
@@ -275,28 +278,40 @@ router.get("/customer", async (req, res) => {
     }));
 
     for (const it of mapped) {
-      itemSummaryMap.set(it.productName, (itemSummaryMap.get(it.productName) ?? 0) + it.qty);
+      itemMap.set(it.productName, (itemMap.get(it.productName) ?? 0) + it.qty);
+      totalItemsSold += it.qty;
     }
+
+    const total = parseFloat(inv.total as any);
+    const cust  = customerMap.get(inv.customerName);
+    if (cust) { cust.totalBills++; cust.totalAmount += total; }
+    else customerMap.set(inv.customerName, { totalBills: 1, totalAmount: total });
 
     invoiceDetails.push({
       invoiceNo:    inv.invoiceNo,
-      customerName: inv.customerName,
       date:         inv.date,
-      total:        parseFloat(inv.total as any),
-      items:        mapped,
+      createdAt:    inv.createdAt ? inv.createdAt.toISOString() : null,
+      customerName: inv.customerName,
+      total,
+      items: mapped,
     });
   }
 
   res.json({
-    name:        name || "",
-    dateFrom:    from,
-    dateTo:      to,
-    invoices:    invoiceDetails,
-    totalBills:  invoiceDetails.length,
+    dateFrom: from,
+    dateTo:   to,
+    customer: customer || "",
+    totalBills:      invoiceDetails.length,
+    totalCustomers:  customerMap.size,
+    totalItemsSold,
     totalAmount: invoiceDetails.reduce((s, i) => s + i.total, 0),
-    itemSummary: [...itemSummaryMap.entries()]
+    invoices: invoiceDetails,
+    itemSummary: [...itemMap.entries()]
       .map(([productName, totalQty]) => ({ productName, totalQty }))
       .sort((a, b) => b.totalQty - a.totalQty),
+    customerSummary: [...customerMap.entries()]
+      .map(([customerName, v]) => ({ customerName, ...v }))
+      .sort((a, b) => b.totalAmount - a.totalAmount),
   });
 });
 
