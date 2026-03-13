@@ -35,15 +35,27 @@ function fmt$(n: number) {
   return `${Number(n).toFixed(2)}$`;
 }
 
-function buildTelegramText(inv: FullInvoice): string {
+function buildTelegramMessage(inv: FullInvoice): string {
   const date     = safeFormatDate(inv.createdAt ?? inv.date, "d MMM yyyy HH:mm");
-  const customer = inv.customerName;
-  const items    = inv.items.map(i =>
-    `${i.productName} = ${i.qty} x $${Number(i.price).toFixed(2)} = $${Number(i.subtotal ?? Number(i.price) * Number(i.qty)).toFixed(2)}`
-  ).join("\n");
+  const itemLines = inv.items.map(i => {
+    const price    = Number(i.price).toFixed(2);
+    const subtotal = Number(i.subtotal ?? Number(i.price) * Number(i.qty)).toFixed(2);
+    return `${i.productName} = ${i.qty} x $${price} = $${subtotal}`;
+  }).join("\n");
   const total = Number(inv.total).toFixed(2);
 
-  return `🧾 BILL\n\nDate: ${date}\nCustomer: ${customer}\n\n${items}\n\nTotal: $${total}`;
+  return [
+    "🧾 SALE INVOICE",
+    "",
+    `Invoice: ${inv.invoiceNo}`,
+    `Date: ${date}`,
+    `Customer: ${inv.customerName}`,
+    "",
+    "Items:",
+    itemLines,
+    "",
+    `Total: $${total}`,
+  ].join("\n");
 }
 
 function buildText(inv: FullInvoice, showDelivery: boolean): string {
@@ -198,11 +210,10 @@ export default function Sales() {
   };
 
   const handleSendTelegram = async (id: number) => {
-    const username = (localStorage.getItem("lumina_telegram_username") ?? "reach_delivery").trim() || "reach_delivery";
     try {
-      const inv  = await fetchFull(id);
-      const message = buildTelegramText(inv);
-      const telegramUrl = `https://t.me/${username}?text=${encodeURIComponent(message)}`;
+      const inv     = await fetchFull(id);
+      const message = buildTelegramMessage(inv);
+      const telegramUrl = `https://t.me/share/url?text=${encodeURIComponent(message)}`;
       window.location.href = telegramUrl;
     } catch {
       toast({ title: "Failed to prepare Telegram message", variant: "destructive" });
