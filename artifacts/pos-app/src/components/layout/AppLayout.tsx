@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { AutoSaveIndicator } from "@/components/AutoSaveIndicator";
+import { RecoveryDialog } from "@/components/RecoveryDialog";
 import { 
   LayoutDashboard, Package, Tags, ReceiptText, 
   Users, Truck, HeartCrack, ArrowRightLeft, 
@@ -59,7 +61,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         })}
       </nav>
 
-      <div className="pt-4 border-t border-border mt-auto">
+      <div className="pt-4 border-t border-border mt-auto space-y-1">
+        <div className="px-3 py-1">
+          <AutoSaveIndicator />
+        </div>
         <div className="px-3 py-2 text-xs text-muted-foreground font-medium">
           Logged in as Admin
         </div>
@@ -84,17 +89,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <span className="font-display font-bold text-lg">Lumina</span>
           </div>
-          
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="shrink-0">
-                <Menu className="w-6 h-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0 border-r-0">
-              <NavContent />
-            </SheetContent>
-          </Sheet>
+
+          <div className="flex items-center gap-2">
+            <AutoSaveIndicator />
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="shrink-0">
+                  <Menu className="w-6 h-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0 border-r-0">
+                <NavContent />
+              </SheetContent>
+            </Sheet>
+          </div>
         </header>
 
         {/* Page Content with Animation */}
@@ -113,6 +121,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </AnimatePresence>
         </div>
       </main>
+
+      <RecoveryDialog />
     </div>
   );
 }

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   DatabaseBackup, Download, Upload, AlertTriangle, HardDrive,
-  ShieldCheck, RefreshCw, Clock, FileJson, Calendar, Server
+  ShieldCheck, RefreshCw, Clock, FileJson, Calendar, Server, Camera
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -47,6 +47,16 @@ export default function Backup() {
       return r.json();
     },
     refetchInterval: 60_000,
+  });
+
+  const { data: snapshots = [], isLoading: snapsLoading, refetch: refetchSnaps } = useQuery<BackupFile[]>({
+    queryKey: ["backup-snapshots"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE()}/api/backup/snapshots`);
+      if (!r.ok) throw new Error("Failed to fetch snapshots");
+      return r.json();
+    },
+    refetchInterval: 5 * 60 * 1000,
   });
 
   // ── Create manual backup ──────────────────────────────────────────────────
@@ -315,6 +325,112 @@ export default function Backup() {
                     variant="outline"
                     className="w-full h-9 rounded-lg text-xs gap-1.5 border-accent/30 text-accent hover:bg-accent/10"
                     onClick={() => handleDownload(b.filename)}
+                  >
+                    <Download className="w-3 h-3" /> Download
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Auto Snapshot History */}
+      <Card className="shadow-md border-none ring-1 ring-border">
+        <CardHeader className="pb-3 flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-lg font-display flex items-center gap-2">
+              <Camera className="w-4 h-4 text-muted-foreground" />
+              Auto Snapshots
+            </CardTitle>
+            <CardDescription className="text-sm mt-1">
+              Created every 5 minutes · Last {Math.min(snapshots.length, 10)} saved
+            </CardDescription>
+          </div>
+          <Button variant="ghost" size="sm" className="h-8 rounded-lg gap-1.5 text-xs" onClick={() => refetchSnaps()}>
+            <RefreshCw className="w-3 h-3" /> Refresh
+          </Button>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="hidden sm:block border border-border rounded-xl overflow-hidden">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-muted-foreground bg-muted/50 uppercase">
+                <tr>
+                  <th className="px-5 py-3.5 font-semibold">Date & Time</th>
+                  <th className="px-5 py-3.5 font-semibold">Filename</th>
+                  <th className="px-5 py-3.5 font-semibold">Size</th>
+                  <th className="px-5 py-3.5 font-semibold text-center">Download</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {snapsLoading ? (
+                  <tr><td colSpan={4} className="px-5 py-10 text-center text-muted-foreground">Loading...</td></tr>
+                ) : snapshots.length === 0 ? (
+                  <tr><td colSpan={4} className="px-5 py-14 text-center text-muted-foreground">
+                    <Camera className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm">No snapshots yet</p>
+                    <p className="text-xs mt-1">First snapshot runs 10 seconds after server starts, then every 5 minutes</p>
+                  </td></tr>
+                ) : (
+                  snapshots.map((b) => (
+                    <tr key={b.filename} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1.5 text-foreground font-medium">
+                          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                          {format(new Date(b.createdAt), "d MMM yyyy HH:mm")}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-muted-foreground text-xs font-mono truncate max-w-[260px]">{b.filename}</td>
+                      <td className="px-5 py-3.5 text-muted-foreground text-xs">{formatBytes(b.sizeBytes)}</td>
+                      <td className="px-5 py-3.5 text-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 rounded-lg text-xs gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50"
+                          onClick={() => {
+                            const url = `${BASE()}/api/backup/snapshot-download/${encodeURIComponent(b.filename)}`;
+                            const a = document.createElement("a");
+                            a.href = url; a.download = b.filename;
+                            document.body.appendChild(a); a.click(); a.remove();
+                          }}
+                        >
+                          <Download className="w-3 h-3" /> Download
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="sm:hidden space-y-3 mt-0">
+            {snapsLoading ? (
+              <p className="text-center text-muted-foreground py-10 text-sm">Loading...</p>
+            ) : snapshots.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                <Camera className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                <p className="text-sm">No snapshots yet</p>
+              </div>
+            ) : (
+              snapshots.map((b) => (
+                <div key={b.filename} className="border border-border rounded-xl p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-foreground">
+                      {format(new Date(b.createdAt), "d MMM yyyy HH:mm")}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{formatBytes(b.sizeBytes)}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono break-all">{b.filename}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full h-9 rounded-lg text-xs gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50"
+                    onClick={() => {
+                      const url = `${BASE()}/api/backup/snapshot-download/${encodeURIComponent(b.filename)}`;
+                      const a = document.createElement("a");
+                      a.href = url; a.download = b.filename;
+                      document.body.appendChild(a); a.click(); a.remove();
+                    }}
                   >
                     <Download className="w-3 h-3" /> Download
                   </Button>

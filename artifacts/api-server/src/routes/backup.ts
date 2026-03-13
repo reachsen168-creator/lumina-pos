@@ -21,9 +21,12 @@ const router = Router();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKUP_DIR = path.resolve(__dirname, "../../backups");
+const SNAPSHOT_DIR = path.resolve(__dirname, "../../snapshots");
 const MAX_BACKUPS = 7;
+const MAX_SNAPSHOTS = 10;
 
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+if (!fs.existsSync(SNAPSHOT_DIR)) fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
 
 // ── Build full backup payload ─────────────────────────────────────────────────
 async function buildBackupPayload() {
@@ -83,8 +86,31 @@ async function saveBackupToDisk(): Promise<{ filename: string; sizeBytes: number
   return { filename, sizeBytes };
 }
 
+// ── Save snapshot (every 5 min, keep last 10) ─────────────────────────────────
+async function saveSnapshot() {
+  const payload = await buildBackupPayload();
+  const now = new Date();
+  const ts = now.toISOString().replace("T", "-").slice(0, 16).replace(":", "");
+  const filename = `autosave-${ts}.json`;
+  const filepath = path.join(SNAPSHOT_DIR, filename);
+
+  fs.writeFileSync(filepath, JSON.stringify(payload), "utf8");
+
+  // Prune oldest beyond MAX_SNAPSHOTS
+  const all = fs.readdirSync(SNAPSHOT_DIR)
+    .filter(f => f.startsWith("autosave-") && f.endsWith(".json"))
+    .map(f => ({ f, mtime: fs.statSync(path.join(SNAPSHOT_DIR, f)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime);
+
+  for (const old of all.slice(MAX_SNAPSHOTS)) {
+    fs.unlinkSync(path.join(SNAPSHOT_DIR, old.f));
+  }
+  return { filename, sizeBytes: fs.statSync(filepath).size };
+}
+
 // ── Auto-backup every 24 hours ────────────────────────────────────────────────
 let autoBackupTimer: ReturnType<typeof setInterval> | null = null;
+let autoSnapshotTimer: ReturnType<typeof setInterval> | null = null;
 
 function startAutoBackup() {
   if (autoBackupTimer) return;
@@ -96,13 +122,61 @@ function startAutoBackup() {
       console.error("[Auto-Backup] Failed:", e);
     }
   };
-  // First run after 5s (let server finish starting), then every 24h
+  // First run after 5s, then every 24h
   setTimeout(() => {
     run();
     autoBackupTimer = setInterval(run, 24 * 60 * 60 * 1000);
   }, 5000);
 }
+
+function startAutoSnapshot() {
+  if (autoSnapshotTimer) return;
+  const run = async () => {
+    try {
+      const { filename } = await saveSnapshot();
+      console.log(`[Snapshot] Saved: ${filename}`);
+    } catch (e) {
+      console.error("[Snapshot] Failed:", e);
+    }
+  };
+  // First snapshot after 10s, then every 5 minutes
+  setTimeout(() => {
+    run();
+    autoSnapshotTimer = setInterval(run, 5 * 60 * 1000);
+  }, 10000);
+}
+
 startAutoBackup();
+startAutoSnapshot();
+
+// ── GET /backup/snapshots ─────────────────────────────────────────────────────
+router.get("/snapshots", (_req, res) => {
+  try {
+    const files = fs.readdirSync(SNAPSHOT_DIR)
+      .filter(f => f.startsWith("autosave-") && f.endsWith(".json"))
+      .map(f => {
+        const stat = fs.statSync(path.join(SNAPSHOT_DIR, f));
+        return { filename: f, sizeBytes: stat.size, createdAt: stat.mtime.toISOString() };
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    res.json(files);
+  } catch {
+    res.json([]);
+  }
+});
+
+// ── GET /backup/snapshot-download/:filename ───────────────────────────────────
+router.get("/snapshot-download/:filename", (req, res) => {
+  const { filename } = req.params;
+  if (!filename.startsWith("autosave-") || !filename.endsWith(".json")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+  const filepath = path.join(SNAPSHOT_DIR, filename);
+  if (!fs.existsSync(filepath)) return res.status(404).json({ error: "Not found" });
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Content-Type", "application/json");
+  res.sendFile(filepath);
+});
 
 // ── GET /backup/list ──────────────────────────────────────────────────────────
 router.get("/list", (_req, res) => {
