@@ -11,11 +11,8 @@ import { Card } from "@/components/ui/card";
 import { DateShortcuts } from "@/components/ui/date-shortcuts";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle
-} from "@/components/ui/dialog";
-import {
   Plus, Search, FileText, Trash2, Edit, Truck,
-  Eye, Clipboard, FileDown, Image
+  ChevronDown, ChevronUp, Clipboard, FileDown, Image
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -31,6 +28,10 @@ function safeFormatDate(val: string | null | undefined, fmt: string): string {
 }
 
 const NUM_ROWS = 18;
+
+function fmt$(n: number) {
+  return `${Number(n).toFixed(2)}$`;
+}
 
 function buildText(inv: FullInvoice, showDelivery: boolean): string {
   const line = "─".repeat(60);
@@ -81,12 +82,15 @@ function buildText(inv: FullInvoice, showDelivery: boolean): string {
 
 /* ── component ───────────────────────────────────────────────────────────── */
 
+type CachedItem = FullInvoice["items"][number];
+
 export default function Sales() {
   const [search, setSearch]     = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo]     = useState("");
   const [showDelivery, setShowDelivery]     = useState(true);
-  const [viewInvoice, setViewInvoice]       = useState<FullInvoice | null>(null);
+  const [expandedId, setExpandedId]         = useState<number | null>(null);
+  const [itemsCache, setItemsCache]         = useState<Record<number, CachedItem[]>>({});
   const [captureInvoice, setCaptureInvoice] = useState<FullInvoice | null>(null);
 
   const captureRef = useRef<HTMLDivElement>(null);
@@ -101,10 +105,9 @@ export default function Sales() {
   const { toast } = useToast();
   const deleteMut = useDeleteInvoice();
 
-  /* capture effect: fires when captureInvoice is set and the hidden div renders */
+  /* capture effect – fires when captureInvoice is set and hidden div renders */
   useEffect(() => {
     if (!captureInvoice || !captureRef.current) return;
-
     const el = captureRef.current;
     html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
       canvas.toBlob(blob => {
@@ -131,23 +134,34 @@ export default function Sales() {
     return res.json();
   };
 
+  /* toggle inline items dropdown */
+  const handleToggleItems = async (id: number) => {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    if (itemsCache[id]) return;           // already cached
+    try {
+      const inv = await fetchFull(id);
+      setItemsCache(prev => ({ ...prev, [id]: inv.items }));
+    } catch {
+      toast({ title: "Failed to load items", variant: "destructive" });
+      setExpandedId(null);
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (!window.confirm("Delete this invoice?")) return;
     try {
       await deleteMut.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getGetInvoicesQueryKey() });
+      // clear from cache if present
+      setItemsCache(prev => { const n = { ...prev }; delete n[id]; return n; });
+      if (expandedId === id) setExpandedId(null);
       toast({ title: "Invoice deleted" });
     } catch {
       toast({ title: "Error deleting invoice", variant: "destructive" });
-    }
-  };
-
-  const handleView = async (id: number) => {
-    try {
-      const inv = await fetchFull(id);
-      setViewInvoice(inv);
-    } catch {
-      toast({ title: "Failed to load invoice", variant: "destructive" });
     }
   };
 
@@ -180,7 +194,7 @@ export default function Sales() {
   const handleExportImage = async (id: number) => {
     try {
       const inv = await fetchFull(id);
-      setCaptureInvoice(inv);   // triggers the useEffect above
+      setCaptureInvoice(inv);
     } catch {
       toast({ title: "Failed to load invoice", variant: "destructive" });
     }
@@ -188,17 +202,9 @@ export default function Sales() {
 
   return (
     <div className="space-y-6">
-      {/* Hidden div for PNG capture – off-screen, always mounted when needed */}
+      {/* Hidden div for PNG capture */}
       {captureInvoice && (
-        <div
-          style={{
-            position: "fixed",
-            left: -9999,
-            top: -9999,
-            zIndex: -1,
-            pointerEvents: "none",
-          }}
-        >
+        <div style={{ position: "fixed", left: -9999, top: -9999, zIndex: -1, pointerEvents: "none" }}>
           <InvoicePreview ref={captureRef} invoice={captureInvoice} showDelivery={showDelivery} />
         </div>
       )}
@@ -243,10 +249,7 @@ export default function Sales() {
             checked={showDelivery}
             onCheckedChange={(v) => setShowDelivery(v === true)}
           />
-          <label
-            htmlFor="show-delivery"
-            className="text-sm text-muted-foreground cursor-pointer select-none"
-          >
+          <label htmlFor="show-delivery" className="text-sm text-muted-foreground cursor-pointer select-none">
             Show Delivery Name in exports
           </label>
         </div>
@@ -263,102 +266,122 @@ export default function Sales() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {invoices.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col"
-                >
-                  {/* Card header */}
-                  <div className="flex justify-between items-start mb-4 gap-2">
-                    <div className="min-w-0">
-                      <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-1 rounded-md mb-2 inline-block">
-                        {inv.invoiceNo}
-                      </span>
-                      <h3 className="font-bold text-lg text-foreground line-clamp-1">{inv.customerName}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {safeFormatDate((inv as any).createdAt ?? inv.date, "dd MMMM yyyy HH:mm")}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xl font-display font-bold text-foreground">${inv.total.toFixed(2)}</p>
-                      {inv.deliveryNo && (
-                        <p className="text-xs text-blue-600 font-medium mt-1 flex items-center justify-end gap-1">
-                          <Truck className="w-3 h-3" /> {inv.deliveryNo}
+              {invoices.map((inv) => {
+                const isOpen  = expandedId === inv.id;
+                const cached  = itemsCache[inv.id] ?? [];
+                const subtotal = cached.reduce((s, it) => s + Number(it.subtotal), 0);
+
+                return (
+                  <div
+                    key={inv.id}
+                    className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col"
+                  >
+                    {/* Card header */}
+                    <div className="flex justify-between items-start mb-3 gap-2">
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-1 rounded-md mb-2 inline-block">
+                          {inv.invoiceNo}
+                        </span>
+                        <h3 className="font-bold text-lg text-foreground line-clamp-1">{inv.customerName}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {safeFormatDate((inv as any).createdAt ?? inv.date, "dd MMMM yyyy HH:mm")}
                         </p>
-                      )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xl font-display font-bold text-foreground">${inv.total.toFixed(2)}</p>
+                        {inv.deliveryNo && (
+                          <p className="text-xs text-blue-600 font-medium mt-1 flex items-center justify-end gap-1">
+                            <Truck className="w-3 h-3" /> {inv.deliveryNo}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Action buttons */}
-                  <div className="mt-auto pt-4 border-t border-border flex flex-wrap gap-1 items-center">
-                    <Button
-                      variant="ghost" size="sm"
-                      className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
-                      onClick={() => handleView(inv.id)}
-                    >
-                      <Eye className="w-3.5 h-3.5 mr-1" /> View Items
-                    </Button>
-                    <Button
-                      variant="ghost" size="sm"
-                      className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
-                      onClick={() => handleCopy(inv.id)}
-                    >
-                      <Clipboard className="w-3.5 h-3.5 mr-1" /> Copy
-                    </Button>
-                    <Button
-                      variant="ghost" size="sm"
-                      className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
-                      onClick={() => handleExportText(inv.id, inv.invoiceNo)}
-                    >
-                      <FileDown className="w-3.5 h-3.5 mr-1" /> Export Text
-                    </Button>
-                    <Button
-                      variant="ghost" size="sm"
-                      className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
-                      onClick={() => handleExportImage(inv.id)}
-                    >
-                      <Image className="w-3.5 h-3.5 mr-1" /> Export Image
-                    </Button>
+                    {/* ── Inline items dropdown ── */}
+                    {isOpen && (
+                      <div className="mb-3 rounded-xl bg-muted/40 border border-border overflow-hidden">
+                        {cached.length === 0 ? (
+                          <p className="px-4 py-3 text-sm text-muted-foreground">Loading…</p>
+                        ) : (
+                          <>
+                            <div className="divide-y divide-border">
+                              {cached.map((item, i) => (
+                                <div key={item.id ?? i} className="px-4 py-2.5 text-sm">
+                                  <span className="font-medium text-foreground">{item.productName}</span>
+                                  <span className="text-muted-foreground">
+                                    {" = "}{item.qty} x {fmt$(item.price)}{" = "}
+                                  </span>
+                                  <span className="font-semibold text-foreground">{fmt$(item.subtotal)}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="px-4 py-2.5 border-t border-border bg-muted/60 flex justify-between items-center text-sm font-semibold">
+                              <span className="text-muted-foreground">Subtotal</span>
+                              <span className="text-foreground">{fmt$(subtotal)}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
 
-                    <div className="ml-auto flex gap-1">
-                      <Link href={`/sales/${inv.id}`}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary rounded-lg">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      </Link>
+                    {/* Action buttons */}
+                    <div className="mt-auto pt-3 border-t border-border flex flex-wrap gap-1 items-center">
+                      {/* View Items toggle */}
                       <Button
-                        variant="ghost" size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:bg-red-50 hover:text-red-600 rounded-lg"
-                        onClick={() => handleDelete(inv.id)}
+                        variant="ghost" size="sm"
+                        className={`h-8 px-2 text-xs transition-colors ${isOpen ? "text-accent bg-accent/10 hover:bg-accent/20" : "text-muted-foreground hover:text-foreground"}`}
+                        onClick={() => handleToggleItems(inv.id)}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {isOpen
+                          ? <><ChevronUp className="w-3.5 h-3.5 mr-1" /> View Items</>
+                          : <><ChevronDown className="w-3.5 h-3.5 mr-1" /> View Items</>
+                        }
                       </Button>
+
+                      <Button
+                        variant="ghost" size="sm"
+                        className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
+                        onClick={() => handleCopy(inv.id)}
+                      >
+                        <Clipboard className="w-3.5 h-3.5 mr-1" /> Copy
+                      </Button>
+                      <Button
+                        variant="ghost" size="sm"
+                        className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
+                        onClick={() => handleExportText(inv.id, inv.invoiceNo)}
+                      >
+                        <FileDown className="w-3.5 h-3.5 mr-1" /> Export Text
+                      </Button>
+                      <Button
+                        variant="ghost" size="sm"
+                        className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
+                        onClick={() => handleExportImage(inv.id)}
+                      >
+                        <Image className="w-3.5 h-3.5 mr-1" /> Export Image
+                      </Button>
+
+                      <div className="ml-auto flex gap-1">
+                        <Link href={`/sales/${inv.id}`}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary rounded-lg">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:bg-red-50 hover:text-red-600 rounded-lg"
+                          onClick={() => handleDelete(inv.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </Card>
-
-      {/* View Items dialog */}
-      <Dialog open={!!viewInvoice} onOpenChange={(open) => { if (!open) setViewInvoice(null); }}>
-        <DialogContent className="max-w-[900px] w-full p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-5 pb-0">
-            <DialogTitle className="text-base font-semibold">
-              Invoice — {viewInvoice?.invoiceNo}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="overflow-auto max-h-[80vh] p-6 pt-4">
-            {viewInvoice && (
-              <div className="overflow-x-auto">
-                <InvoicePreview invoice={viewInvoice} showDelivery={showDelivery} />
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
