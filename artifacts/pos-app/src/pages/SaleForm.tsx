@@ -126,16 +126,24 @@ export default function SaleForm() {
       }
     }
 
-    setItems((prev) => [
-      ...prev,
-      {
-        tempId: Math.random(),
-        productId: product.id,
-        productName: product.name,
-        price: parseFloat(String(defaultPrice)) || 0,
-        qty: 1,
-      },
-    ]);
+    setItems((prev) => {
+      const existing = prev.findIndex((i) => i.productId === product.id);
+      if (existing !== -1) {
+        const updated = [...prev];
+        updated[existing] = { ...updated[existing], qty: updated[existing].qty + 1 };
+        return updated;
+      }
+      return [
+        ...prev,
+        {
+          tempId: Math.random(),
+          productId: product.id,
+          productName: product.name,
+          price: parseFloat(String(defaultPrice)) || 0,
+          qty: 1,
+        },
+      ];
+    });
     setProdSearch("");
   };
 
