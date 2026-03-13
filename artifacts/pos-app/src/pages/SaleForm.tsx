@@ -3,6 +3,7 @@ import { useLocation, useParams } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useGetInvoice, useCreateInvoice, useUpdateInvoice, useGetProducts, useGetDeliveries,
+  useGetCategories,
   useListCustomers, useCreateCustomer,
   getLastSalePrice,
   getGetInvoicesQueryKey,
@@ -42,6 +43,7 @@ export default function SaleForm() {
   const { data: allProducts = [] } = useGetProducts();
   const { data: deliveries = [] } = useGetDeliveries();
   const { data: allCustomers = [] } = useListCustomers({});
+  const { data: categories = [] } = useGetCategories();
 
   // Form State
   const [customerName, setCustomerName] = useState("");
@@ -56,7 +58,19 @@ export default function SaleForm() {
   const custRef = useRef<HTMLDivElement>(null);
 
   // Product Search UI
-  const [prodSearch, setProdSearch] = useState("");
+  const [prodSearch,   setProdSearch]   = useState("");
+  const [selectedCat,  setSelectedCat]  = useState<number | null>(null);
+  const [prodFocused,  setProdFocused]  = useState(false);
+
+  // Recent products (stored in localStorage, max 10 ids)
+  const RECENT_KEY = "lumina_recent_products";
+  const getRecentIds = (): number[] => {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]"); } catch { return []; }
+  };
+  const pushRecentId = (pid: number) => {
+    const ids = [pid, ...getRecentIds().filter(x => x !== pid)].slice(0, 10);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(ids));
+  };
 
   // Damage dialog state
   const [damageItem,    setDamageItem]    = useState<any | null>(null);
@@ -152,6 +166,9 @@ export default function SaleForm() {
       }
     }
 
+    // Track as recently used
+    if (product.id > 0) pushRecentId(product.id);
+
     setItems((prev) => {
       const existing = prev.findIndex((i) => i.productId === product.id);
       if (existing !== -1) {
@@ -241,13 +258,30 @@ export default function SaleForm() {
     }
   };
 
-  const filteredSearchProducts = prodSearch
-    ? allProducts.filter((p) => p.name.toLowerCase().includes(prodSearch.toLowerCase())).slice(0, 8)
+  const searchLower = prodSearch.toLowerCase().trim();
+
+  const filteredSearchProducts = (() => {
+    let base = selectedCat !== null
+      ? allProducts.filter(p => (p as any).categoryId === selectedCat)
+      : allProducts;
+    if (!searchLower) return selectedCat !== null ? base.slice(0, 30) : [];
+    return base.filter(p => p.name.toLowerCase().includes(searchLower)).slice(0, 10);
+  })();
+
+  const recentProducts = (() => {
+    if (searchLower || selectedCat !== null) return [];
+    return getRecentIds()
+      .map(rid => allProducts.find(p => p.id === rid))
+      .filter(Boolean) as typeof allProducts;
+  })();
+
+  const filteredRepairedItems = searchLower
+    ? repairedItems.filter(r => r.itemName.toLowerCase().includes(searchLower))
     : [];
 
-  const filteredRepairedItems = prodSearch
-    ? repairedItems.filter(r => r.itemName.toLowerCase().includes(prodSearch.toLowerCase()))
-    : [];
+  const showDropdown = searchLower.length > 0
+    || selectedCat !== null
+    || (prodFocused && recentProducts.length > 0);
 
   // ── Damage item handler ──────────────────────────────────────────────────
   const handleDamageSubmit = async () => {
@@ -413,35 +447,123 @@ export default function SaleForm() {
 
           <Card className="p-6 shadow-sm border-none ring-1 ring-border rounded-2xl overflow-visible">
             <h2 className="text-lg font-bold mb-4 border-b border-border pb-2">Add Products</h2>
+
+            {/* Category filter chips */}
+            {categories.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCat(null)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${selectedCat === null ? "bg-accent text-white border-accent" : "bg-muted text-muted-foreground border-border hover:border-accent hover:text-accent"}`}
+                >
+                  All
+                </button>
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setSelectedCat(selectedCat === c.id ? null : c.id)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${selectedCat === c.id ? "bg-accent text-white border-accent" : "bg-muted text-muted-foreground border-border hover:border-accent hover:text-accent"}`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Search input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
-                placeholder="Search product to add... (Type to see list)"
+                placeholder="Search product by name..."
                 value={prodSearch}
                 onChange={(e) => setProdSearch(e.target.value)}
+                onFocus={() => setProdFocused(true)}
+                onBlur={() => setTimeout(() => setProdFocused(false), 150)}
                 className="pl-10 h-14 text-lg rounded-xl border-accent focus-visible:ring-accent bg-accent/5"
               />
 
-              {prodSearch && (filteredSearchProducts.length > 0 || filteredRepairedItems.length > 0) && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border shadow-xl rounded-xl z-50 overflow-hidden max-h-64 overflow-y-auto">
-                  {filteredSearchProducts.map((p) => (
-                    <div
-                      key={p.id}
-                      className="px-4 py-3 hover:bg-muted cursor-pointer flex justify-between items-center border-b border-border last:border-0"
-                      onClick={() => handleAddItem(p)}
-                    >
-                      <div>
-                        <p className="font-semibold">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">{p.categoryName || "No category"}</p>
+              {showDropdown && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border shadow-xl rounded-xl z-50 overflow-hidden max-h-72 overflow-y-auto">
+
+                  {/* Recent Products */}
+                  {recentProducts.length > 0 && (
+                    <>
+                      <div className="px-4 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/60 border-b border-border uppercase tracking-wide">
+                        Recently Used
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">${p.basePrice.toFixed(2)}</p>
-                        <p className={`text-xs ${p.stockQty <= 5 && p.trackStock ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
-                          {p.trackStock ? `${p.stockQty} in stock` : "-"}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                      {recentProducts.map((p) => (
+                        <div
+                          key={`recent-${p.id}`}
+                          className="px-4 py-3 hover:bg-muted flex justify-between items-center border-b border-border last:border-0"
+                        >
+                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleAddItem(p)}>
+                            <p className="font-semibold truncate">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">{(p as any).categoryName || "No category"}</p>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0 ml-3">
+                            <div className="text-right">
+                              <p className="font-medium text-sm">${Number(p.basePrice).toFixed(2)}</p>
+                              <p className={`text-xs ${p.stockQty <= 5 && p.trackStock ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
+                                {p.trackStock ? `${p.stockQty} in stock` : "-"}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleAddItem(p)}
+                              className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/80 shrink-0"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Search / category results */}
+                  {filteredSearchProducts.length > 0 && (
+                    <>
+                      {recentProducts.length > 0 && (
+                        <div className="px-4 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/60 border-b border-border uppercase tracking-wide">
+                          {selectedCat !== null ? categories.find(c => c.id === selectedCat)?.name ?? "Category" : "Results"}
+                        </div>
+                      )}
+                      {filteredSearchProducts.map((p) => (
+                        <div
+                          key={p.id}
+                          className="px-4 py-3 hover:bg-muted flex justify-between items-center border-b border-border last:border-0"
+                        >
+                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleAddItem(p)}>
+                            <p className="font-semibold truncate">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">{(p as any).categoryName || "No category"}</p>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0 ml-3">
+                            <div className="text-right">
+                              <p className="font-medium text-sm">${Number(p.basePrice).toFixed(2)}</p>
+                              <p className={`text-xs ${p.stockQty <= 5 && p.trackStock ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
+                                {p.trackStock ? `${p.stockQty} in stock` : "-"}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleAddItem(p)}
+                              className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent/80 shrink-0"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* No results */}
+                  {filteredSearchProducts.length === 0 && recentProducts.length === 0 && filteredRepairedItems.length === 0 && (
+                    <div className="px-4 py-6 text-sm text-muted-foreground text-center">No products found.</div>
+                  )}
+
+                  {/* Repaired Items */}
                   {filteredRepairedItems.length > 0 && (
                     <>
                       <div className="px-4 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/60 border-b border-border uppercase tracking-wide">
@@ -450,25 +572,22 @@ export default function SaleForm() {
                       {filteredRepairedItems.map((r) => (
                         <div
                           key={`repaired-${r.id}`}
-                          className="px-4 py-3 hover:bg-muted cursor-pointer flex justify-between items-center border-b border-border last:border-0"
-                          onClick={() => {
-                            handleAddItem({
-                              id: r.productId ?? -r.id,
-                              name: `${r.itemName} (Repaired)`,
-                              basePrice: 0,
-                              trackStock: false,
-                              stockQty: r.availableQty,
-                              categoryName: "Repaired",
-                              damageRecordId: r.id,
-                              isRepaired: true,
-                            } as any);
-                          }}
+                          className="px-4 py-3 hover:bg-muted flex justify-between items-center border-b border-border last:border-0"
                         >
-                          <div>
-                            <p className="font-semibold text-green-700">{r.itemName} <span className="text-xs font-normal">(Repaired)</span></p>
+                          <div
+                            className="flex-1 min-w-0 cursor-pointer"
+                            onClick={() => handleAddItem({ id: r.productId ?? -r.id, name: `${r.itemName} (Repaired)`, basePrice: 0, trackStock: false, stockQty: r.availableQty, categoryName: "Repaired", damageRecordId: r.id, isRepaired: true } as any)}
+                          >
+                            <p className="font-semibold text-green-700 truncate">{r.itemName} <span className="text-xs font-normal">(Repaired)</span></p>
                             <p className="text-xs text-muted-foreground">{r.availableQty} available</p>
                           </div>
-                          <Wrench className="w-4 h-4 text-green-600" />
+                          <button
+                            type="button"
+                            onClick={() => handleAddItem({ id: r.productId ?? -r.id, name: `${r.itemName} (Repaired)`, basePrice: 0, trackStock: false, stockQty: r.availableQty, categoryName: "Repaired", damageRecordId: r.id, isRepaired: true } as any)}
+                            className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center hover:bg-green-700 shrink-0 ml-3"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
                         </div>
                       ))}
                     </>
