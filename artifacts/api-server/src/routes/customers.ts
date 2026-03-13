@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, invoicesTable, invoiceItemsTable, productsTable, customersTable } from "@workspace/db";
-import { eq, and, gte, lte, ilike, desc, like } from "drizzle-orm";
+import { eq, and, gte, lte, ilike, desc } from "drizzle-orm";
+import { logHistory } from "./history.js";
 
 const router = Router();
 
@@ -25,6 +26,7 @@ router.post("/", async (req, res) => {
     .insert(customersTable)
     .values({ name: name.trim(), phone: phone || null, note: note || null, createdDate })
     .returning();
+  await logHistory("CREATE", "customer", row.id, `Created customer: ${row.name}`);
   res.status(201).json(row);
 });
 
@@ -40,19 +42,21 @@ router.put("/:id", async (req, res) => {
     .where(eq(customersTable.id, id))
     .returning();
   if (!row) return res.status(404).json({ error: "Customer not found" });
+  await logHistory("UPDATE", "customer", row.id, `Updated customer: ${row.name}`);
   res.json(row);
 });
 
 router.delete("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
+  const [existing] = await db.select().from(customersTable).where(eq(customersTable.id, id));
   await db.delete(customersTable).where(eq(customersTable.id, id));
+  await logHistory("DELETE", "customer", id, `Deleted customer: ${existing?.name || id}`);
   res.status(204).end();
 });
 
 // ── Customer Names (for datalist hints) ──────────────────────────────────────
 
 router.get("/names", async (_req, res) => {
-  // Combine names from both customers table and invoices (for legacy names)
   const fromCustomers = await db
     .selectDistinct({ name: customersTable.name })
     .from(customersTable)

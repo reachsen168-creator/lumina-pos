@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const historyLogsTable = pgTable("history_logs", {
   id: serial("id").primaryKey(),
+  user: text("user").notNull().default("Admin"),
   action: text("action").notNull(),
   entity: text("entity").notNull(),
   entityId: integer("entity_id"),
