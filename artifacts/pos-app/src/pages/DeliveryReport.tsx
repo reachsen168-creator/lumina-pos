@@ -67,18 +67,18 @@ function buildTripText(trip: DeliveryTrip): string {
   lines.push(`Delivery : ${delivery.deliveryNo}`);
   if (delivery.driver) lines.push(`Driver : ${delivery.driver}`);
 
-  // Customers → items
+  // Customers → items (reads from data, not DOM; works regardless of collapse state)
   for (const grp of customers) {
     lines.push("");
     lines.push(`Customer : ${grp.customerName}`);
-    for (const inv of grp.invoices) {
-      for (const it of inv.items) {
-        const total = it.qty * it.price;
-        const totalStr = Number.isInteger(total) ? `$${total}` : `$${total.toFixed(2)}`;
-        const priceStr = Number.isInteger(it.price) ? `$${it.price}` : `$${it.price.toFixed(2)}`;
-        lines.push(`Item : ${it.productName}`);
-        lines.push(`${it.qty} × ${priceStr} = ${totalStr}`);
-      }
+    lines.push("");
+    const allItems = grp.invoices.flatMap(inv => inv.items);
+    for (const it of allItems) {
+      const total = it.qty * it.price;
+      const subtotalStr = Number.isInteger(total) ? `$${total}` : `$${total.toFixed(2)}`;
+      const priceStr = Number.isInteger(it.price) ? `$${it.price}` : `$${it.price.toFixed(2)}`;
+      lines.push(it.productName);
+      lines.push(`${it.qty} × ${priceStr} = ${subtotalStr}`);
     }
   }
 
@@ -94,8 +94,8 @@ function buildTripText(trip: DeliveryTrip): string {
   // Totals
   lines.push("");
   lines.push(`Total Bills : ${totalBills}`);
-  const totalStr = Number.isInteger(grandTotal) ? `$${grandTotal}` : `$${grandTotal.toFixed(2)}`;
-  lines.push(`Total Amount : ${totalStr}`);
+  const grandStr = Number.isInteger(grandTotal) ? `$${grandTotal}` : `$${grandTotal.toFixed(2)}`;
+  lines.push(`Total Amount : ${grandStr}`);
 
   return lines.join("\n");
 }
