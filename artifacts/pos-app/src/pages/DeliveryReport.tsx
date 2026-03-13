@@ -319,41 +319,37 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2">
-          <div className="text-right">
-            <div className="text-2xl font-bold text-accent">{fmt(grandTotal)}</div>
-            <div className="text-xs text-muted-foreground">{totalBills} bill{totalBills !== 1 ? "s" : ""}</div>
-          </div>
-          {/* Two action buttons */}
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleExport}
-              disabled={exporting}
-              className="h-8 gap-1.5 text-xs"
-            >
-              {exporting
-                ? <><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> Exporting…</>
-                : <><ImageIcon className="w-3.5 h-3.5" /> Export Image</>
-              }
-            </Button>
-            <Button
-              size="sm"
-              variant={copied ? "default" : "outline"}
-              onClick={handleCopy}
-              className={`h-8 gap-1.5 text-xs transition-all ${copied ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : ""}`}
-            >
-              {copied
-                ? <><Check className="w-3.5 h-3.5" /> Copied!</>
-                : <><Copy className="w-3.5 h-3.5" /> Copy as Text</>
-              }
-            </Button>
-          </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold text-accent">{fmt(grandTotal)}</div>
+          <div className="text-xs text-muted-foreground">{totalBills} bill{totalBills !== 1 ? "s" : ""}</div>
         </div>
       </div>
 
       <div className="p-5 space-y-4">
+        {/* ── Report action buttons ── flex row → column on mobile */}
+        <div className="flex flex-col sm:flex-row gap-[10px]">
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium"
+          >
+            {exporting
+              ? <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> Exporting…</>
+              : <><ImageIcon className="w-4 h-4" /> Export Image</>
+            }
+          </Button>
+          <Button
+            variant={copied ? "default" : "outline"}
+            onClick={handleCopy}
+            className={`flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium transition-all ${copied ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : ""}`}
+          >
+            {copied
+              ? <><Check className="w-4 h-4" /> Copied!</>
+              : <><Copy className="w-4 h-4" /> Copy as Text</>
+            }
+          </Button>
+        </div>
         {customers.length === 0 ? (
           <p className="text-sm text-muted-foreground italic">No invoices assigned to this delivery.</p>
         ) : (
