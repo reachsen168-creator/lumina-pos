@@ -104,7 +104,10 @@ export default function HistoryLogs() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center text-muted-foreground">
                           <Clock className="w-3.5 h-3.5 mr-2 opacity-70" />
-                          {format(new Date(log.timestamp), 'MMM d, yyyy HH:mm:ss')}
+                          {(() => {
+                            const d = log.timestamp ? new Date(log.timestamp) : null;
+                            return d && !isNaN(d.getTime()) ? format(d, 'MMM d, yyyy HH:mm:ss') : 'N/A';
+                          })()}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">{getActionBadge(log.action)}</td>
