@@ -1,16 +1,31 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { useGetSalesReport } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateShortcuts } from "@/components/ui/date-shortcuts";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { DollarSign, Receipt, Package, BarChart3, TrendingUp } from "lucide-react";
+import { DollarSign, Receipt, Package, BarChart3, TrendingUp, AlertTriangle } from "lucide-react";
+
+interface DamageReportRow { item: string; totalDamaged: number; totalRepaired: number; totalSold: number; remaining: number }
+
+async function fetchDamageReport(): Promise<DamageReportRow[]> {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const r = await fetch(`${base}/api/damage-records/report`);
+  if (!r.ok) return [];
+  return r.json();
+}
 
 export default function Reports() {
   const [dateFrom, setDateFrom] = useState(format(new Date(new Date().setDate(1)), 'yyyy-MM-dd')); // default 1st of month
   const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+  const { data: damageReport = [] } = useQuery<DamageReportRow[]>({
+    queryKey: ["damage-report"],
+    queryFn:  fetchDamageReport,
+  });
 
   const { data: report, isLoading } = useGetSalesReport({
     dateFrom: dateFrom || undefined,
@@ -159,6 +174,46 @@ export default function Reports() {
           </div>
         </>
       )}
+
+      {/* ── Damage Report ─────────────────────────────────────────────────── */}
+      <Card className="shadow-md border-none ring-1 ring-border">
+        <CardHeader className="border-b border-border bg-muted/10">
+          <CardTitle className="font-display flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-orange-500" /> Damage Report
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {damageReport.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+              <AlertTriangle className="w-10 h-10 mb-2 opacity-20" />
+              <p className="text-sm">No damage records yet.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[500px]">
+                <thead>
+                  <tr className="bg-muted/40 border-b border-border">
+                    {["Item", "Total Damaged", "Total Repaired", "Total Sold", "Remaining"].map(h => (
+                      <th key={h} className="px-4 py-3 text-left font-semibold text-foreground">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {damageReport.map((row, i) => (
+                    <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/20">
+                      <td className="px-4 py-3 font-medium">{row.item}</td>
+                      <td className="px-4 py-3 text-red-600 font-bold tabular-nums">{row.totalDamaged}</td>
+                      <td className="px-4 py-3 text-blue-600 font-semibold tabular-nums">{row.totalRepaired}</td>
+                      <td className="px-4 py-3 text-green-600 font-semibold tabular-nums">{row.totalSold}</td>
+                      <td className="px-4 py-3 font-bold tabular-nums">{row.remaining}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

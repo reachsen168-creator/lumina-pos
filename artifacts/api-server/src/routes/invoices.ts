@@ -356,5 +356,79 @@ router.put("/:id/packing", async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── POST /api/invoices/:id/damage-item ────────────────────────────────────
+// Records damage for one invoice item: reduces its qty, appends note, creates damage record.
+router.post("/:id/damage-item", async (req, res) => {
+  const invoiceId = parseInt(req.params.id);
+  if (isNaN(invoiceId)) return res.status(400).json({ error: "Invalid invoice ID" });
+
+  const { invoiceItemId, damageQty, damageReason } = req.body;
+  if (!invoiceItemId || !damageQty || damageQty <= 0)
+    return res.status(400).json({ error: "invoiceItemId and damageQty required" });
+
+  const [invItem] = await db
+    .select({
+      id:        invoiceItemsTable.id,
+      invoiceId: invoiceItemsTable.invoiceId,
+      productId: invoiceItemsTable.productId,
+      qty:       invoiceItemsTable.qty,
+      price:     invoiceItemsTable.price,
+      productName: productsTable.name,
+    })
+    .from(invoiceItemsTable)
+    .leftJoin(productsTable, eq(invoiceItemsTable.productId, productsTable.id))
+    .where(eq(invoiceItemsTable.id, invoiceItemId));
+
+  if (!invItem || invItem.invoiceId !== invoiceId)
+    return res.status(404).json({ error: "Invoice item not found" });
+
+  const currentQty = parseFloat(invItem.qty as any);
+  if (damageQty > currentQty)
+    return res.status(400).json({ error: `Damage qty (${damageQty}) exceeds item qty (${currentQty})` });
+
+  const newQty     = currentQty - damageQty;
+  const newSubtotal = newQty * parseFloat(invItem.price as any);
+
+  await db.update(invoiceItemsTable).set({
+    qty:      newQty.toString(),
+    subtotal: newSubtotal.toString(),
+  }).where(eq(invoiceItemsTable.id, invoiceItemId));
+
+  // Recalculate invoice total
+  const allItems = await db.select({ subtotal: invoiceItemsTable.subtotal })
+    .from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, invoiceId));
+  const newTotal = allItems.reduce((s, i) => s + parseFloat(i.subtotal as any), 0);
+  await db.update(invoicesTable).set({ total: newTotal.toString() }).where(eq(invoicesTable.id, invoiceId));
+
+  // Append note
+  const [inv] = await db.select({ note: invoicesTable.note, invoiceNo: invoicesTable.invoiceNo, customerName: invoicesTable.customerName })
+    .from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
+  const noteAppend = `${damageQty} ${invItem.productName || "item"} damaged and removed from invoice`;
+  const existingNote = inv.note || "";
+  const newNote = existingNote ? `${existingNote}; ${noteAppend}` : noteAppend;
+  await db.update(invoicesTable).set({ note: newNote }).where(eq(invoicesTable.id, invoiceId));
+
+  // Create damage record
+  const { damageRecordsTable } = await import("@workspace/db");
+  await db.insert(damageRecordsTable).values({
+    itemName:      invItem.productName || "Unknown",
+    productId:     invItem.productId,
+    damageQty:     damageQty.toString(),
+    repairedQty:   "0",
+    soldQty:       "0",
+    remainingQty:  damageQty.toString(),
+    invoiceNumber: inv.invoiceNo,
+    customerName:  inv.customerName,
+    damageDate:    new Date().toISOString().split("T")[0],
+    damageReason:  damageReason || null,
+    status:        "Damaged",
+  });
+
+  await logHistory("UPDATE", "invoice", invoiceId, `Damage: ${damageQty} × ${invItem.productName} removed`);
+
+  const updated = await getInvoiceWithItems(invoiceId);
+  res.json(updated);
+});
+
 export { getInvoiceWithItems };
 export default router;

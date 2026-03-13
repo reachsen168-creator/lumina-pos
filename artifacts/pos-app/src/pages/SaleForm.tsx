@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useGetInvoice, useCreateInvoice, useUpdateInvoice, useGetProducts, useGetDeliveries,
   useListCustomers, useCreateCustomer,
@@ -15,9 +15,20 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, Minus, Trash2, Search, UserPlus, ChevronDown } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ArrowLeft, Plus, Minus, Trash2, Search, UserPlus, ChevronDown, AlertTriangle, Wrench } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+
+const API_BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
+
+interface RepairedItem { id: number; itemName: string; productId: number | null; availableQty: number }
+
+async function fetchAvailableRepaired(): Promise<RepairedItem[]> {
+  const r = await fetch(`${API_BASE()}/api/damage-records/available-repaired`);
+  if (!r.ok) return [];
+  return r.json();
+}
 
 export default function SaleForm() {
   const { id } = useParams();
@@ -47,6 +58,18 @@ export default function SaleForm() {
   // Product Search UI
   const [prodSearch, setProdSearch] = useState("");
 
+  // Damage dialog state
+  const [damageItem,    setDamageItem]    = useState<any | null>(null);
+  const [damageQty,     setDamageQty]     = useState(1);
+  const [damageReason,  setDamageReason]  = useState("");
+  const [damageLoading, setDamageLoading] = useState(false);
+
+  // Repaired items available for sale
+  const { data: repairedItems = [] } = useQuery<RepairedItem[]>({
+    queryKey: ["available-repaired"],
+    queryFn:  fetchAvailableRepaired,
+  });
+
   const createMut = useCreateInvoice();
   const updateMut = useUpdateInvoice();
   const createCustomerMut = useCreateCustomer();
@@ -60,11 +83,12 @@ export default function SaleForm() {
       setDeliveryId(existingInvoice.deliveryId ? existingInvoice.deliveryId.toString() : "none");
       setItems(
         existingInvoice.items.map((i) => ({
-          tempId: Math.random(),
-          productId: i.productId,
+          tempId:      Math.random(),
+          id:          i.id,          // DB id - needed for damage recording
+          productId:   i.productId,
           productName: i.productName,
-          price: parseFloat(String(i.price)) || 0,
-          qty: parseFloat(String(i.qty)) || 1,
+          price:       parseFloat(String(i.price)) || 0,
+          qty:         parseFloat(String(i.qty)) || 1,
         }))
       );
     }
@@ -219,6 +243,51 @@ export default function SaleForm() {
     ? allProducts.filter((p) => p.name.toLowerCase().includes(prodSearch.toLowerCase())).slice(0, 8)
     : [];
 
+  const filteredRepairedItems = prodSearch
+    ? repairedItems.filter(r => r.itemName.toLowerCase().includes(prodSearch.toLowerCase()))
+    : [];
+
+  // ── Damage item handler ──────────────────────────────────────────────────
+  const handleDamageSubmit = async () => {
+    if (!damageItem || !id) return;
+    if (damageQty <= 0 || damageQty > damageItem.qty) {
+      toast({ title: `Damage qty must be between 1 and ${damageItem.qty}`, variant: "destructive" });
+      return;
+    }
+    setDamageLoading(true);
+    try {
+      const r = await fetch(`${API_BASE()}/api/invoices/${id}/damage-item`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceItemId: damageItem.id, damageQty, damageReason }),
+      });
+      if (!r.ok) {
+        const e = await r.json();
+        toast({ title: e.error || "Failed to record damage", variant: "destructive" });
+        return;
+      }
+      const updated = await r.json();
+      // Refresh the items from the updated invoice
+      setItems(
+        updated.items.map((i: any) => ({
+          tempId:      Math.random(),
+          id:          i.id,
+          productId:   i.productId,
+          productName: i.productName,
+          price:       parseFloat(String(i.price)) || 0,
+          qty:         parseFloat(String(i.qty)) || 1,
+        }))
+      );
+      queryClient.invalidateQueries({ queryKey: getGetInvoiceQueryKey(Number(id)) });
+      queryClient.invalidateQueries({ queryKey: ["damage-records"] });
+      queryClient.invalidateQueries({ queryKey: ["available-repaired"] });
+      toast({ title: `${damageQty} ${damageItem.productName} marked as damaged` });
+      setDamageItem(null);
+      setDamageQty(1);
+      setDamageReason("");
+    } finally { setDamageLoading(false); }
+  };
+
   if (isEdit && loadingInv) return <div className="p-12 text-center">Loading...</div>;
 
   return (
@@ -339,7 +408,7 @@ export default function SaleForm() {
                 className="pl-10 h-14 text-lg rounded-xl border-accent focus-visible:ring-accent bg-accent/5"
               />
 
-              {prodSearch && filteredSearchProducts.length > 0 && (
+              {prodSearch && (filteredSearchProducts.length > 0 || filteredRepairedItems.length > 0) && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border shadow-xl rounded-xl z-50 overflow-hidden max-h-64 overflow-y-auto">
                   {filteredSearchProducts.map((p) => (
                     <div
@@ -353,16 +422,43 @@ export default function SaleForm() {
                       </div>
                       <div className="text-right">
                         <p className="font-medium">${p.basePrice.toFixed(2)}</p>
-                        <p
-                          className={`text-xs ${
-                            p.stockQty <= 5 && p.trackStock ? "text-red-500 font-bold" : "text-muted-foreground"
-                          }`}
-                        >
+                        <p className={`text-xs ${p.stockQty <= 5 && p.trackStock ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
                           {p.trackStock ? `${p.stockQty} in stock` : "-"}
                         </p>
                       </div>
                     </div>
                   ))}
+                  {filteredRepairedItems.length > 0 && (
+                    <>
+                      <div className="px-4 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/60 border-b border-border uppercase tracking-wide">
+                        Repaired Items
+                      </div>
+                      {filteredRepairedItems.map((r) => (
+                        <div
+                          key={`repaired-${r.id}`}
+                          className="px-4 py-3 hover:bg-muted cursor-pointer flex justify-between items-center border-b border-border last:border-0"
+                          onClick={() => {
+                            handleAddItem({
+                              id: r.productId ?? -r.id,
+                              name: `${r.itemName} (Repaired)`,
+                              basePrice: 0,
+                              trackStock: false,
+                              stockQty: r.availableQty,
+                              categoryName: "Repaired",
+                              damageRecordId: r.id,
+                              isRepaired: true,
+                            } as any);
+                          }}
+                        >
+                          <div>
+                            <p className="font-semibold text-green-700">{r.itemName} <span className="text-xs font-normal">(Repaired)</span></p>
+                            <p className="text-xs text-muted-foreground">{r.availableQty} available</p>
+                          </div>
+                          <Wrench className="w-4 h-4 text-green-600" />
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -421,21 +517,35 @@ export default function SaleForm() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t border-border sm:border-0">
+                  <div className="flex items-center justify-between w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t border-border sm:border-0 gap-2">
                     <div className="text-right sm:mr-4">
                       <p className="text-xs text-muted-foreground mb-1">Subtotal</p>
                       <p className="font-display font-bold text-lg text-foreground">
                         ${itemSubtotal(item.price, item.qty).toFixed(2)}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeItem(idx)}
-                      className="text-muted-foreground hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl shrink-0"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {/* Damage button — only in edit mode when item has a DB id */}
+                      {isEdit && item.id && item.qty > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setDamageItem(item); setDamageQty(1); setDamageReason(""); }}
+                          className="gap-1 text-xs h-9 px-2 text-orange-600 border-orange-300 hover:bg-orange-50"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5" /> Damage
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeItem(idx)}
+                        className="text-muted-foreground hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl shrink-0"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -475,6 +585,56 @@ export default function SaleForm() {
           </Card>
         </div>
       </div>
+
+      {/* ── Damage Item Dialog ── */}
+      {damageItem && (
+        <Dialog open onOpenChange={() => { setDamageItem(null); }}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-orange-500" /> Record Damage
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
+                <div><span className="text-muted-foreground">Item:</span> <strong>{damageItem.productName}</strong></div>
+                <div><span className="text-muted-foreground">Invoice Qty:</span> <strong>{damageItem.qty}</strong></div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Damage Quantity <span className="text-muted-foreground text-xs">(max {damageItem.qty})</span></Label>
+                <Input
+                  type="number" min={1} max={damageItem.qty}
+                  value={damageQty}
+                  onChange={e => setDamageQty(Math.min(damageItem.qty, Math.max(1, Number(e.target.value))))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Damage Reason <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Input
+                  placeholder="e.g. Broken during delivery…"
+                  value={damageReason}
+                  onChange={e => setDamageReason(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground bg-orange-50 border border-orange-200 rounded-lg p-2">
+                This will reduce the invoice qty by <strong>{damageQty}</strong> and create a damage record.
+              </p>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setDamageItem(null)}>Cancel</Button>
+              <Button
+                onClick={handleDamageSubmit}
+                disabled={damageLoading || damageQty <= 0 || damageQty > damageItem.qty}
+                className="gap-2 bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                {damageLoading
+                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving…</>
+                  : <><AlertTriangle className="w-4 h-4" /> Confirm Damage</>}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -1,0 +1,192 @@
+{variant="standard" id="73124"}
+UPDATE POS SYSTEM
+
+1. REMOVE OLD DAMAGE ITEMS MODULE
+
+Remove the existing "Damaged Items" menu and its related components completely.
+
+Delete:
+- Old Damaged Items page
+- Old damaged items table
+- Any old damage logic
+
+Keep all other modules unchanged:
+Sales
+Invoices
+Products
+Customers
+Delivery
+Reports
+
+-------------------------------------
+
+2. CREATE NEW DAMAGE MANAGEMENT SYSTEM
+
+Add a new module called:
+
+Damage Management
+
+Menu position:
+
+Dashboard
+Sales & Invoices
+Products
+Customers
+Deliveries
+Damage Management
+Reports
+
+-------------------------------------
+
+3. DAMAGE FROM INVOICE
+
+Inside each Sales Invoice item row add a button:
+
+Damage
+
+When clicked open popup:
+
+Fields:
+Damage Quantity
+Damage Reason
+
+Rules:
+Damage qty cannot exceed invoice qty.
+
+Example:
+
+Invoice Item:
+Beer = 10
+
+Damage:
+2
+
+System must:
+
+Reduce invoice quantity:
+
+Beer = 8
+
+Add invoice note:
+
+"2 Beer damaged and removed from invoice"
+
+Create new damage record.
+
+-------------------------------------
+
+4. DAMAGE DATABASE STRUCTURE
+
+Create table:
+
+damage_records
+
+Fields:
+
+id
+item_name
+damage_qty
+repaired_qty
+sold_qty
+remaining_qty
+invoice_number
+customer_name
+damage_date
+status
+sold_to
+sale_invoice
+
+-------------------------------------
+
+5. DAMAGE MANAGEMENT PAGE
+
+Columns:
+
+Damage ID
+Item
+Damage Qty
+Repaired Qty
+Sold Qty
+Remaining
+From Invoice
+Customer
+Status
+Action
+
+Actions:
+
+Repair
+View History
+
+-------------------------------------
+
+6. REPAIR ITEM
+
+Button:
+
+Repair Item
+
+Popup fields:
+
+Repair Quantity
+
+Rules:
+
+Repair qty ≤ remaining damaged qty
+
+System updates:
+
+repaired_qty
+remaining_qty
+
+Status:
+
+Damaged
+Partially Repaired
+Ready to Sell
+
+-------------------------------------
+
+7. SELL REPAIRED ITEMS
+
+In Sales item dropdown include:
+
+Item Name
+Item Name (Repaired)
+
+When repaired items are sold:
+
+Update damage record:
+
+sold_qty
+remaining_qty
+sold_to
+sale_invoice
+
+-------------------------------------
+
+8. DAMAGE REPORT
+
+Add new report inside Reports:
+
+Damage Report
+
+Columns:
+
+Item
+Total Damaged
+Total Repaired
+Total Sold
+Remaining
+
+-------------------------------------
+
+9. MOBILE UI
+
+System must work on mobile.
+
+Tables scroll horizontally if needed.
+
+Buttons must be touch friendly.
+
+------------------

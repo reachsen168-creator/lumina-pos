@@ -16,7 +16,7 @@ const navItems = [
   { href: "/categories", label: "Categories", icon: Tags },
   { href: "/customers", label: "Customers", icon: Users },
   { href: "/deliveries", label: "Deliveries", icon: Truck },
-  { href: "/damaged", label: "Damaged Items", icon: HeartCrack },
+  { href: "/damage-management", label: "Damage Management", icon: HeartCrack },
   { href: "/transfers", label: "Transfers", icon: ArrowRightLeft },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/delivery-report", label: "Delivery Report", icon: ClipboardList },

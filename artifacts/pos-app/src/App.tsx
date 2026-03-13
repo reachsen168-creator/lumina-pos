@@ -12,7 +12,7 @@ import Sales from "@/pages/Sales";
 import SaleForm from "@/pages/SaleForm";
 import Customers from "@/pages/Customers";
 import Deliveries from "@/pages/Deliveries";
-import DamagedItems from "@/pages/DamagedItems";
+import DamageManagement from "@/pages/DamageManagement";
 import Transfers from "@/pages/Transfers";
 import Reports from "@/pages/Reports";
 import HistoryLogs from "@/pages/HistoryLogs";
@@ -38,7 +38,7 @@ function Router() {
         <Route path="/sales/:id" component={SaleForm} />
         <Route path="/customers" component={Customers} />
         <Route path="/deliveries" component={Deliveries} />
-        <Route path="/damaged" component={DamagedItems} />
+        <Route path="/damage-management" component={DamageManagement} />
         <Route path="/transfers" component={Transfers} />
         <Route path="/reports" component={Reports} />
         <Route path="/delivery-report" component={DeliveryReport} />
