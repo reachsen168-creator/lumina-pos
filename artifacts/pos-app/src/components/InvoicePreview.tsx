@@ -3,10 +3,25 @@ import { format } from "date-fns";
 
 const NUM_ROWS = 18;
 
+const KHMER_MONTHS = [
+  "មករា","កុម្ភៈ","មីនា","មេសា","ឧសភា","មិថុនា",
+  "កក្កដា","សីហា","កញ្ញា","តុលា","វិច្ឆិកា","ធ្នូ",
+];
+
 function safeDate(val: string | null | undefined, fmt: string): string {
   if (!val) return "N/A";
   const d = new Date(val);
   return isNaN(d.getTime()) ? "N/A" : format(d, fmt);
+}
+
+function parseDateParts(val: string | null | undefined) {
+  const d = val ? new Date(val) : null;
+  if (!d || isNaN(d.getTime())) return { day: "—", month: "—", year: "—" };
+  return {
+    day:   String(d.getDate()).padStart(2, "0"),
+    month: KHMER_MONTHS[d.getMonth()],
+    year:  String(d.getFullYear()),
+  };
 }
 
 export interface FullInvoice {
@@ -33,10 +48,11 @@ interface Props {
 }
 
 export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, showDelivery = true }, ref) => {
-  const rows = Array.from({ length: NUM_ROWS }, (_, i) => invoice.items[i] ?? null);
-  const dateStr = safeDate(invoice.createdAt ?? invoice.date, "dd MMMM yyyy HH:mm");
+  const rows    = Array.from({ length: NUM_ROWS }, (_, i) => invoice.items[i] ?? null);
+  const rawDate = invoice.createdAt ?? invoice.date;
+  const dateStr = safeDate(rawDate, "dd/MM/yyyy HH:mm");
+  const { day, month, year } = parseDateParts(rawDate);
 
-  /* ── styles ── */
   const s: Record<string, React.CSSProperties> = {
     root: {
       width: 800,
@@ -47,28 +63,42 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
       padding: "40px 48px 48px",
       boxSizing: "border-box",
     },
-    metaGrid: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: "8px 24px",
-      marginBottom: 28,
-      padding: "16px 20px",
-      backgroundColor: "#f8f8f8",
-      borderRadius: 6,
-    },
-    metaRow: {
+    headerWrap: {
       display: "flex",
-      gap: 8,
+      justifyContent: "space-between",
+      alignItems: "center",
+      borderBottom: "2px solid #1a1a1a",
+      marginBottom: 20,
+      paddingBottom: 16,
+      gap: 0,
     },
-    metaLabel: {
-      fontWeight: 700,
-      color: "#555",
-      minWidth: 80,
-      fontSize: 12,
-    },
-    metaValue: {
+    headerLeft: {
+      flex: 1,
+      fontSize: 13,
+      lineHeight: 2.1,
       color: "#1a1a1a",
+    },
+    headerCenter: {
+      flex: "0 0 auto",
+      textAlign: "center" as const,
+      borderLeft: "1px solid #ccc",
+      borderRight: "1px solid #ccc",
+      padding: "0 32px",
+    },
+    headerRight: {
+      flex: 1,
+      textAlign: "right" as const,
+      fontSize: 13,
+      lineHeight: 2.1,
+      color: "#1a1a1a",
+    },
+    noteRow: {
       fontSize: 12,
+      color: "#555",
+      marginBottom: 14,
+      padding: "6px 10px",
+      backgroundColor: "#f8f8f8",
+      borderRadius: 4,
     },
     table: {
       width: "100%",
@@ -85,10 +115,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
     tdQty:    { padding: "7px 8px", textAlign: "center" as const, fontSize: 12, color: "#1a1a1a", borderRight: "1px solid #e0e0e0" },
     tdPrice:  { padding: "7px 8px", textAlign: "right" as const,  fontSize: 12, color: "#1a1a1a", borderRight: "1px solid #e0e0e0" },
     tdAmount: { padding: "7px 8px", textAlign: "right" as const,  fontSize: 12, color: "#1a1a1a" },
-    totalRow: {
-      borderTop: "2px solid #1a1a1a",
-      marginTop: 0,
-    },
+    totalRow: { borderTop: "2px solid #1a1a1a" },
     totalLabel: {
       padding: "12px 8px",
       textAlign: "right" as const,
@@ -112,53 +139,48 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
       justifyContent: "space-between",
       alignItems: "flex-end",
     },
-    footerNote: {
-      fontSize: 11,
-      color: "#888",
-      maxWidth: 340,
-    },
-    sigBlock: {
-      textAlign: "right" as const,
-      fontSize: 11,
-      color: "#888",
-    },
+    footerNote: { fontSize: 11, color: "#888", maxWidth: 340 },
+    sigBlock:   { textAlign: "right" as const, fontSize: 11, color: "#888" },
   };
 
   return (
     <div ref={ref} style={s.root}>
 
-      {/* Khmer title */}
-      <p style={{ textAlign: "center", fontWeight: 800, fontSize: 28, marginBottom: 24, color: "#1a1a1a" }}>
-        វិក័យបត្រ
-      </p>
+      {/* ── 3-column header ── */}
+      <div style={s.headerWrap}>
 
-      {/* Meta */}
-      <div style={s.metaGrid}>
-        <div style={s.metaRow}>
-          <span style={s.metaLabel}>Customer</span>
-          <span style={s.metaValue}>{invoice.customerName}</span>
+        {/* Left: customer + invoice no */}
+        <div style={s.headerLeft}>
+          <div>អតិថិជន : {invoice.customerName}</div>
+          <div>Customer : {invoice.customerName}</div>
+          <div>លេខ : {invoice.invoiceNo}</div>
         </div>
-        <div style={s.metaRow}>
-          <span style={s.metaLabel}>Date &amp; Time</span>
-          <span style={s.metaValue}>{dateStr}</span>
-        </div>
-        <div style={s.metaRow}>
-          <span style={s.metaLabel}>Invoice No.</span>
-          <span style={s.metaValue}>{invoice.invoiceNo}</span>
-        </div>
-        {showDelivery && (
-          <div style={s.metaRow}>
-            <span style={s.metaLabel}>Delivery</span>
-            <span style={s.metaValue}>{invoice.deliveryNo ?? "—"}</span>
+
+        {/* Centre: title */}
+        <div style={s.headerCenter}>
+          <div style={{ fontSize: 30, fontWeight: 800, color: "#1a1a1a", lineHeight: 1.2 }}>
+            វិក័យបត្រ
           </div>
-        )}
-        {invoice.note && (
-          <div style={{ ...s.metaRow, gridColumn: "1 / -1" }}>
-            <span style={s.metaLabel}>Note</span>
-            <span style={s.metaValue}>{invoice.note}</span>
+          <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: 3, color: "#444", marginTop: 4 }}>
+            INVOICE
           </div>
-        )}
+        </div>
+
+        {/* Right: delivery / date / Khmer date */}
+        <div style={s.headerRight}>
+          {showDelivery && <div>TEL : {invoice.deliveryNo ?? "—"}</div>}
+          <div>Date : {dateStr}</div>
+          <div>ថ្ងៃ {day} ខែ {month} ឆ្នាំ {year}</div>
+        </div>
+
       </div>
+
+      {/* Note (optional) */}
+      {invoice.note && (
+        <div style={s.noteRow}>
+          <strong>Note:</strong> {invoice.note}
+        </div>
+      )}
 
       {/* Product table */}
       <table style={s.table}>
@@ -176,21 +198,11 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
             const bg = i % 2 === 0 ? "#ffffff" : "#fafafa";
             return (
               <tr key={i} style={{ backgroundColor: bg }}>
-                <td style={{ ...s.tdNo,    borderBottom: "1px solid #e8e8e8" }}>
-                  {item ? i + 1 : ""}
-                </td>
-                <td style={{ ...s.tdName,  borderBottom: "1px solid #e8e8e8" }}>
-                  {item?.productName ?? ""}
-                </td>
-                <td style={{ ...s.tdQty,   borderBottom: "1px solid #e8e8e8" }}>
-                  {item ? item.qty : ""}
-                </td>
-                <td style={{ ...s.tdPrice, borderBottom: "1px solid #e8e8e8" }}>
-                  {item ? `$${Number(item.price).toFixed(2)}` : ""}
-                </td>
-                <td style={{ ...s.tdAmount, borderBottom: "1px solid #e8e8e8" }}>
-                  {item ? `$${Number(item.subtotal).toFixed(2)}` : ""}
-                </td>
+                <td style={{ ...s.tdNo,    borderBottom: "1px solid #e8e8e8" }}>{item ? i + 1 : ""}</td>
+                <td style={{ ...s.tdName,  borderBottom: "1px solid #e8e8e8" }}>{item?.productName ?? ""}</td>
+                <td style={{ ...s.tdQty,   borderBottom: "1px solid #e8e8e8" }}>{item ? item.qty : ""}</td>
+                <td style={{ ...s.tdPrice, borderBottom: "1px solid #e8e8e8" }}>{item ? `$${Number(item.price).toFixed(2)}` : ""}</td>
+                <td style={{ ...s.tdAmount, borderBottom: "1px solid #e8e8e8" }}>{item ? `$${Number(item.subtotal).toFixed(2)}` : ""}</td>
               </tr>
             );
           })}
@@ -213,6 +225,7 @@ export const InvoicePreview = forwardRef<HTMLDivElement, Props>(({ invoice, show
           <p style={{ margin: 0 }}>Authorised Signature</p>
         </div>
       </div>
+
     </div>
   );
 });
