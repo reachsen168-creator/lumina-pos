@@ -6,40 +6,44 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Plus, Trash2, Share2, Package, Save } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Share2, Package, Save, Pencil, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { DeliveryPackingPreview, type PackageGroup } from "@/components/DeliveryPackingPreview";
 import type { FullInvoice } from "@/components/InvoicePreview";
 import html2canvas from "html2canvas";
 
-const PACKAGE_TYPES = ["កេះ", "បាវ", "កញ្ចប់", "ថង់", "ប្រអប់", "ផ្សេងៗ"];
+/** Common quick-pick types shown as chips — user can still type anything */
+const QUICK_TYPES = ["កេះ", "បាវ", "ដប", "កញ្ចប់", "ថង់", "ប្រអប់"];
 
-function uid() {
-  return Math.random().toString(36).slice(2, 9);
-}
+function uid() { return Math.random().toString(36).slice(2, 9); }
+
+/* ── Inline group-edit row state ── */
+interface EditState { type: string; qty: number }
 
 export default function DeliveryPacking() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const [invoice, setInvoice]     = useState<FullInvoice | null>(null);
-  const [loading, setLoading]     = useState(true);
+  const [invoice, setInvoice]   = useState<FullInvoice | null>(null);
+  const [loading, setLoading]   = useState(true);
 
-  const [groups, setGroups]               = useState<PackageGroup[]>([]);
-  const [selected, setSelected]           = useState<Set<number>>(new Set());
-  const [newPkgType, setNewPkgType]       = useState(PACKAGE_TYPES[0]);
-  const [customType, setCustomType]       = useState("");
-  const [newPkgQty, setNewPkgQty]         = useState(1);
-  const [sharing, setSharing]             = useState(false);
-  const [saving, setSaving]               = useState(false);
-  const [showDelivery, setShowDelivery]   = useState(true);
+  const [groups, setGroups]             = useState<PackageGroup[]>([]);
+  const [selected, setSelected]         = useState<Set<number>>(new Set());
+  const [newPkgType, setNewPkgType]     = useState("កេះ");
+  const [newPkgQty, setNewPkgQty]       = useState(1);
+  const [sharing, setSharing]           = useState(false);
+  const [saving, setSaving]             = useState(false);
+  const [showDelivery, setShowDelivery] = useState(true);
 
-  const previewRef = useRef<HTMLDivElement>(null);
-  // Track whether groups have been dirty since last save
-  const savedGroupsRef = useRef<string>("[]");
+  /** Which group is being inline-edited and its draft values */
+  const [editingId, setEditingId]   = useState<string | null>(null);
+  const [editDraft, setEditDraft]   = useState<EditState>({ type: "", qty: 1 });
 
-  // ── Load invoice + saved packing on mount ──────────────────────────────
+  const previewRef       = useRef<HTMLDivElement>(null);
+  const savedGroupsRef   = useRef<string>("[]");
+
+  /* ── Load invoice + saved packing on mount ── */
   useEffect(() => {
     if (!id) return;
     Promise.all([
@@ -59,11 +63,11 @@ export default function DeliveryPacking() {
       });
   }, [id]);
 
-  // ── Save helper ────────────────────────────────────────────────────────
+  /* ── Save helper ── */
   const saveGroups = useCallback(async (groupsToSave: PackageGroup[]) => {
     if (!id) return;
     const json = JSON.stringify(groupsToSave);
-    if (json === savedGroupsRef.current) return; // no change
+    if (json === savedGroupsRef.current) { toast({ title: "Already saved" }); return; }
     setSaving(true);
     try {
       const r = await fetch(`/api/invoices/${id}/packing`, {
@@ -85,49 +89,57 @@ export default function DeliveryPacking() {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading…</div>;
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────
+  /* ── Helpers ── */
   const assignedIndices = new Set(groups.flatMap(g => g.itemIndices));
 
   const toggleItem = (idx: number) => {
     if (assignedIndices.has(idx)) return;
-    setSelected(prev => {
-      const n = new Set(prev);
-      n.has(idx) ? n.delete(idx) : n.add(idx);
-      return n;
-    });
+    setSelected(prev => { const n = new Set(prev); n.has(idx) ? n.delete(idx) : n.add(idx); return n; });
   };
 
   const createGroup = () => {
     if (selected.size === 0) return;
-    const type = newPkgType === "ផ្សេងៗ" ? (customType.trim() || "ផ្សេងៗ") : newPkgType;
-    const newGroup: PackageGroup = {
+    const type = newPkgType.trim() || "កញ្ចប់";
+    setGroups(prev => [...prev, {
       id: uid(),
       itemIndices: [...selected].sort((a, b) => a - b),
       packageType: type,
       packageQty:  newPkgQty,
-    };
-    setGroups(prev => [...prev, newGroup]);
+    }]);
     setSelected(new Set());
     setNewPkgQty(1);
   };
 
   const deleteGroup = (gid: string) => {
+    if (editingId === gid) setEditingId(null);
     setGroups(prev => prev.filter(g => g.id !== gid));
   };
 
-  // ── Share image ──────────────────────────────────────────────────────────
+  const startEdit = (g: PackageGroup) => {
+    setEditingId(g.id);
+    setEditDraft({ type: g.packageType, qty: g.packageQty });
+  };
+
+  const commitEdit = () => {
+    if (!editingId) return;
+    const type = editDraft.type.trim() || "កញ្ចប់";
+    setGroups(prev => prev.map(g =>
+      g.id === editingId ? { ...g, packageType: type, packageQty: Math.max(1, editDraft.qty) } : g
+    ));
+    setEditingId(null);
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  /* ── Share image ── */
   const handleShare = async () => {
     if (!previewRef.current) return;
     setSharing(true);
     try {
       await document.fonts.ready;
-      const canvas = await html2canvas(previewRef.current, {
-        scale: 3,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-      });
-      const blob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob(b => b ? resolve(b) : reject(new Error("toBlob")), "image/png")
+      const canvas = await html2canvas(previewRef.current, { scale: 3, useCORS: true, backgroundColor: "#ffffff" });
+      const blob = await new Promise<Blob>((res, rej) =>
+        canvas.toBlob(b => b ? res(b) : rej(new Error("toBlob")), "image/png")
       );
       const filename = `${invoice.invoiceNo}-packing.png`;
       const file = new File([blob], filename, { type: "image/png" });
@@ -142,7 +154,7 @@ export default function DeliveryPacking() {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>${filename}</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{background:#111;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:16px;gap:12px}img{max-width:100%;height:auto;display:block;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.6)}p{color:#888;font:13px/1.5 sans-serif;text-align:center;padding-bottom:24px}</style>
-</head><body><img src="${dataUrl}" alt="${filename}"><p>Long press the image and choose &ldquo;Save to Photos&rdquo; to save it.</p></body></html>`);
+</head><body><img src="${dataUrl}" alt="${filename}"><p>Long press the image to save.</p></body></html>`);
           win.document.close();
         }
       }
@@ -153,7 +165,7 @@ export default function DeliveryPacking() {
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  /* ── Render ── */
   return (
     <div className="space-y-6">
       <PageHeader
@@ -179,15 +191,15 @@ export default function DeliveryPacking() {
           {invoice.items.map((item, i) => {
             const inGroup   = assignedIndices.has(i);
             const isChecked = selected.has(i);
-            const groupInfo = inGroup ? groups.find(g => g.itemIndices.includes(i)) : null;
+            const grpInfo   = inGroup ? groups.find(g => g.itemIndices.includes(i)) : null;
 
             return (
               <div
                 key={i}
                 onClick={() => toggleItem(i)}
                 className={`flex items-center gap-3 px-4 py-3 text-sm cursor-pointer transition-colors
-                  ${inGroup ? "bg-muted/50 cursor-not-allowed" : "hover:bg-muted/30"}
-                  ${isChecked ? "bg-accent/5 border-l-4 border-accent" : ""}`}
+                  ${inGroup ? "bg-muted/40 cursor-not-allowed" : "hover:bg-muted/30"}
+                  ${isChecked ? "bg-accent/5 border-l-4 border-l-accent" : ""}`}
               >
                 <Checkbox
                   checked={isChecked}
@@ -200,9 +212,9 @@ export default function DeliveryPacking() {
                   {item.productName}
                 </span>
                 <span className="font-bold tabular-nums">{item.qty}</span>
-                {groupInfo && (
-                  <span className="text-xs text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-                    {groupInfo.packageQty} {groupInfo.packageType}
+                {grpInfo && (
+                  <span className="text-xs text-accent bg-accent/10 px-2 py-0.5 rounded-full whitespace-nowrap">
+                    {grpInfo.packageQty} {grpInfo.packageType}
                   </span>
                 )}
               </div>
@@ -210,31 +222,38 @@ export default function DeliveryPacking() {
           })}
         </div>
 
-        {/* Group creation controls */}
-        <div className="flex flex-wrap items-end gap-3 pt-2">
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Package Type</label>
-            <select
-              value={newPkgType}
-              onChange={e => setNewPkgType(e.target.value)}
-              className="h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-            >
-              {PACKAGE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+        {/* Package type: free-text input + quick-pick chips */}
+        <div className="space-y-2 pt-1">
+          <label className="text-xs font-medium text-muted-foreground">Package Type</label>
+          <Input
+            value={newPkgType}
+            onChange={e => setNewPkgType(e.target.value)}
+            placeholder="Type any package name…"
+            className="h-9 max-w-xs"
+          />
+          {/* Quick-pick chips */}
+          <div className="flex flex-wrap gap-2">
+            {QUICK_TYPES.map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setNewPkgType(t)}
+                className={`px-3 py-1 rounded-full text-xs border transition-colors font-medium
+                  ${newPkgType === t
+                    ? "bg-accent text-white border-accent"
+                    : "bg-background text-muted-foreground border-border hover:border-accent hover:text-accent"
+                  }`}
+              >
+                {t}
+              </button>
+            ))}
           </div>
-          {newPkgType === "ផ្សេងៗ" && (
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">Custom Type</label>
-              <Input
-                value={customType}
-                onChange={e => setCustomType(e.target.value)}
-                placeholder="e.g. ខ្ចប់"
-                className="h-9 w-32"
-              />
-            </div>
-          )}
+        </div>
+
+        {/* Qty + Add button */}
+        <div className="flex items-end gap-3 pt-1">
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Qty</label>
+            <label className="text-xs font-medium text-muted-foreground">Qty</label>
             <Input
               type="number"
               min={1}
@@ -254,14 +273,13 @@ export default function DeliveryPacking() {
         </div>
       </Card>
 
-      {/* ── Step 2: Groups list ── */}
+      {/* ── Step 2: Groups list with inline editing ── */}
       {groups.length > 0 && (
         <Card className="border-none ring-1 ring-border shadow-md p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-base">Package Groups ({groups.length})</h2>
             <Button
-              variant="outline"
-              size="sm"
+              variant="outline" size="sm"
               disabled={saving}
               className="h-8 gap-2 text-xs"
               onClick={() => saveGroups(groups)}
@@ -270,23 +288,86 @@ export default function DeliveryPacking() {
               {saving ? "Saving…" : "Save Layout"}
             </Button>
           </div>
+
           <div className="space-y-2">
             {groups.map((g, gi) => (
-              <div key={g.id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/40 border border-border">
-                <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-                  Group {gi + 1}
-                </span>
-                <span className="flex-1 text-sm text-foreground">
-                  {g.itemIndices.map(idx => invoice.items[idx]?.productName).join(", ")}
-                </span>
-                <span className="font-bold text-sm">{g.packageQty} {g.packageType}</span>
-                <Button
-                  variant="ghost" size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50"
-                  onClick={() => deleteGroup(g.id)}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
+              <div key={g.id} className="rounded-xl border border-border bg-muted/30 overflow-hidden">
+                {/* Group header row */}
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full shrink-0">
+                    Group {gi + 1}
+                  </span>
+                  <span className="flex-1 text-sm text-foreground truncate">
+                    {g.itemIndices.map(idx => invoice.items[idx]?.productName).join(", ")}
+                  </span>
+
+                  {editingId === g.id ? (
+                    /* ── Inline edit mode ── */
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Input
+                        value={editDraft.type}
+                        onChange={e => setEditDraft(d => ({ ...d, type: e.target.value }))}
+                        className="h-7 w-24 text-xs px-2"
+                        placeholder="type…"
+                        autoFocus
+                        onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") cancelEdit(); }}
+                      />
+                      <Input
+                        type="number"
+                        min={1}
+                        value={editDraft.qty}
+                        onChange={e => setEditDraft(d => ({ ...d, qty: Math.max(1, Number(e.target.value)) }))}
+                        className="h-7 w-14 text-xs px-2"
+                        onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") cancelEdit(); }}
+                      />
+                      <button onClick={commitEdit} className="p-1 text-green-600 hover:bg-green-50 rounded">
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={cancelEdit} className="p-1 text-muted-foreground hover:bg-muted rounded">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    /* ── Display mode ── */
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-bold text-sm">{g.packageQty} {g.packageType}</span>
+                      <button
+                        onClick={() => startEdit(g)}
+                        className="p-1 text-muted-foreground hover:text-accent hover:bg-accent/10 rounded"
+                        title="Edit"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => deleteGroup(g.id)}
+                        className="p-1 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded"
+                        title="Remove"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick-type chips when editing */}
+                {editingId === g.id && (
+                  <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+                    {QUICK_TYPES.map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setEditDraft(d => ({ ...d, type: t }))}
+                        className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors
+                          ${editDraft.type === t
+                            ? "bg-accent text-white border-accent"
+                            : "bg-background text-muted-foreground border-border hover:border-accent"
+                          }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
