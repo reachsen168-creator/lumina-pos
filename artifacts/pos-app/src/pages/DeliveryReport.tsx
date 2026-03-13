@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,33 +46,56 @@ function fmt(n: number) {
 
 function today() { return format(new Date(), "yyyy-MM-dd"); }
 
-// ── Copy-text builder (new format) ────────────────────────────────────────────
+// ── Copy-text builder ─────────────────────────────────────────────────────────
 
 function buildTripText(trip: DeliveryTrip): string {
-  const { delivery, customers, packageSummary } = trip;
+  const { delivery, customers, packageSummary, totalBills, grandTotal } = trip;
   const lines: string[] = [];
 
-  lines.push(`DELIVERY ${delivery.deliveryNo}`);
+  // Header
+  lines.push("DELIVERY REPORT");
+
+  // Date & Time
+  let dateStr = delivery.date;
+  try { dateStr = format(new Date(delivery.date), "d MMM yyyy"); } catch {}
+  const timeStr = format(new Date(), "HH:mm");
+  lines.push(`Date : ${dateStr}`);
+  lines.push(`Time : ${timeStr}`);
+  lines.push("");
+
+  // Delivery info
+  lines.push(`Delivery : ${delivery.deliveryNo}`);
   if (delivery.driver) lines.push(`Driver : ${delivery.driver}`);
 
+  // Customers → items
   for (const grp of customers) {
     lines.push("");
-    lines.push(grp.customerName);
+    lines.push(`Customer : ${grp.customerName}`);
     for (const inv of grp.invoices) {
       for (const it of inv.items) {
         const total = it.qty * it.price;
         const totalStr = Number.isInteger(total) ? `$${total}` : `$${total.toFixed(2)}`;
         const priceStr = Number.isInteger(it.price) ? `$${it.price}` : `$${it.price.toFixed(2)}`;
+        lines.push(`Item : ${it.productName}`);
         lines.push(`${it.qty} × ${priceStr} = ${totalStr}`);
       }
     }
   }
 
+  // Package summary
   if (packageSummary.length > 0) {
     lines.push("");
-    lines.push("Package:");
-    lines.push(packageSummary.map(p => `${p.qty} ${p.type}`).join(" + "));
+    lines.push("Package :");
+    for (const p of packageSummary) {
+      lines.push(`${p.qty} ${p.type}`);
+    }
   }
+
+  // Totals
+  lines.push("");
+  lines.push(`Total Bills : ${totalBills}`);
+  const totalStr = Number.isInteger(grandTotal) ? `$${grandTotal}` : `$${grandTotal.toFixed(2)}`;
+  lines.push(`Total Amount : ${totalStr}`);
 
   return lines.join("\n");
 }
@@ -201,6 +225,7 @@ function PrintView({ trip, printRef }: { trip: DeliveryTrip; printRef: React.Ref
 
 function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
   const { delivery, customers, packageSummary, totalBills, grandTotal } = trip;
+  const { toast } = useToast();
 
   // Delivery trip: collapsed by default
   const [tripOpen, setTripOpen] = useState(false);
@@ -234,15 +259,16 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
     } catch {
       const ta = document.createElement("textarea");
       ta.value = text;
-      ta.style.cssText = "position:fixed;opacity:0";
+      ta.style.cssText = "position:fixed;opacity:0;left:0;top:0";
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
     setCopied(true);
+    toast({ title: "Delivery report copied successfully." });
     setTimeout(() => setCopied(false), 2000);
-  }, [trip]);
+  }, [trip, toast]);
 
   const expandAll   = useCallback(() => setOpenSet(new Set(allNames)), [allNames.join(",")]);
   const collapseAll = useCallback(() => setOpenSet(new Set()), []);
