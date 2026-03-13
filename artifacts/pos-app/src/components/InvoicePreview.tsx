@@ -192,7 +192,7 @@ export function InvoicePreview({ invoice, showDelivery = true }: Props) {
             return (
               <tr key={i} style={{ backgroundColor: bg }}>
                 <td style={td({ textAlign: "center", color: C.muted })}>
-                  {item ? i + 1 : ""}
+                  {i + 1}
                 </td>
                 <td style={td({ paddingLeft: 10, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" })}>
                   {item?.productName ?? ""}
