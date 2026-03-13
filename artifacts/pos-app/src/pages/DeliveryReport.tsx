@@ -46,34 +46,30 @@ function fmt(n: number) {
 
 function today() { return format(new Date(), "yyyy-MM-dd"); }
 
-// ── Copy-text builder ─────────────────────────────────────────────────────────
+// ── Copy-text builders ────────────────────────────────────────────────────────
+
+function buildTripHeader(delivery: DeliveryTrip["delivery"]): string[] {
+  const lines: string[] = [];
+  lines.push("DELIVERY REPORT");
+  let dateStr = delivery.date;
+  try { dateStr = format(new Date(delivery.date), "d MMM yyyy"); } catch {}
+  lines.push(`Date : ${dateStr}`);
+  lines.push(`Time : ${format(new Date(), "HH:mm")}`);
+  lines.push("");
+  lines.push(`Delivery : ${delivery.deliveryNo}`);
+  if (delivery.driver) lines.push(`Driver : ${delivery.driver}`);
+  return lines;
+}
 
 function buildTripText(trip: DeliveryTrip): string {
   const { delivery, customers, packageSummary, totalBills, grandTotal } = trip;
-  const lines: string[] = [];
+  const lines: string[] = buildTripHeader(delivery);
 
-  // Header
-  lines.push("DELIVERY REPORT");
-
-  // Date & Time
-  let dateStr = delivery.date;
-  try { dateStr = format(new Date(delivery.date), "d MMM yyyy"); } catch {}
-  const timeStr = format(new Date(), "HH:mm");
-  lines.push(`Date : ${dateStr}`);
-  lines.push(`Time : ${timeStr}`);
-  lines.push("");
-
-  // Delivery info
-  lines.push(`Delivery : ${delivery.deliveryNo}`);
-  if (delivery.driver) lines.push(`Driver : ${delivery.driver}`);
-
-  // Customers → items (reads from data, not DOM; works regardless of collapse state)
   for (const grp of customers) {
     lines.push("");
     lines.push(`Customer : ${grp.customerName}`);
     lines.push("");
-    const allItems = grp.invoices.flatMap(inv => inv.items);
-    for (const it of allItems) {
+    for (const it of grp.invoices.flatMap(inv => inv.items)) {
       const total = it.qty * it.price;
       const subtotalStr = Number.isInteger(total) ? `$${total}` : `$${total.toFixed(2)}`;
       const priceStr = Number.isInteger(it.price) ? `$${it.price}` : `$${it.price.toFixed(2)}`;
@@ -82,20 +78,41 @@ function buildTripText(trip: DeliveryTrip): string {
     }
   }
 
-  // Package summary
   if (packageSummary.length > 0) {
     lines.push("");
     lines.push("Package :");
-    for (const p of packageSummary) {
-      lines.push(`${p.qty} ${p.type}`);
-    }
+    for (const p of packageSummary) lines.push(`${p.qty} ${p.type}`);
   }
 
-  // Totals
   lines.push("");
   lines.push(`Total Bills : ${totalBills}`);
   const grandStr = Number.isInteger(grandTotal) ? `$${grandTotal}` : `$${grandTotal.toFixed(2)}`;
   lines.push(`Total Amount : ${grandStr}`);
+
+  return lines.join("\n");
+}
+
+function buildTripTextNoPrices(trip: DeliveryTrip): string {
+  const { delivery, customers, packageSummary, totalBills } = trip;
+  const lines: string[] = buildTripHeader(delivery);
+
+  for (const grp of customers) {
+    lines.push("");
+    lines.push(`Customer : ${grp.customerName}`);
+    lines.push("");
+    for (const it of grp.invoices.flatMap(inv => inv.items)) {
+      lines.push(`${it.productName}  ×${it.qty}`);
+    }
+  }
+
+  if (packageSummary.length > 0) {
+    lines.push("");
+    lines.push("Package :");
+    for (const p of packageSummary) lines.push(`${p.qty} ${p.type}`);
+  }
+
+  lines.push("");
+  lines.push(`Total Bills : ${totalBills}`);
 
   return lines.join("\n");
 }
@@ -251,9 +268,10 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
     } finally { setExporting(false); }
   }, [delivery.deliveryNo]);
 
-  const [copied, setCopied] = useState(false);
-  const handleCopy = useCallback(async () => {
-    const text = buildTripText(trip);
+  const [copiedWith,    setCopiedWith]    = useState(false);
+  const [copiedWithout, setCopiedWithout] = useState(false);
+
+  const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -265,10 +283,21 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
-    setCopied(true);
-    toast({ title: "Delivery report copied successfully." });
-    setTimeout(() => setCopied(false), 2000);
-  }, [trip, toast]);
+  }, []);
+
+  const handleCopyWith = useCallback(async () => {
+    await copyToClipboard(buildTripText(trip));
+    setCopiedWith(true);
+    toast({ title: "Copied to clipboard" });
+    setTimeout(() => setCopiedWith(false), 2000);
+  }, [trip, toast, copyToClipboard]);
+
+  const handleCopyWithout = useCallback(async () => {
+    await copyToClipboard(buildTripTextNoPrices(trip));
+    setCopiedWithout(true);
+    toast({ title: "Copied to clipboard" });
+    setTimeout(() => setCopiedWithout(false), 2000);
+  }, [trip, toast, copyToClipboard]);
 
   const expandAll   = useCallback(() => setOpenSet(new Set(allNames)), [allNames.join(",")]);
   const collapseAll = useCallback(() => setOpenSet(new Set()), []);
@@ -347,29 +376,44 @@ function DeliveryCard({ trip }: { trip: DeliveryTrip }) {
         {tripOpen && (
           <div className="p-4 space-y-4">
 
-            {/* Action buttons: stacked on mobile, side-by-side on sm+ */}
-            <div className="flex flex-col sm:flex-row gap-[10px]">
+            {/* Action buttons */}
+            <div className="flex flex-col gap-[10px]">
+              {/* Row 1: Export Image */}
               <Button
                 variant="outline"
                 onClick={handleExport}
                 disabled={exporting}
-                className="flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium"
+                className="w-full gap-2 rounded-lg py-[10px] h-auto text-sm font-medium"
               >
                 {exporting
                   ? <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> Exporting…</>
                   : <><ImageIcon className="w-4 h-4" /> Export Image</>
                 }
               </Button>
-              <Button
-                variant={copied ? "default" : "outline"}
-                onClick={handleCopy}
-                className={`flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium transition-all ${copied ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : ""}`}
-              >
-                {copied
-                  ? <><Check className="w-4 h-4" /> Copied!</>
-                  : <><Copy className="w-4 h-4" /> Copy Text</>
-                }
-              </Button>
+
+              {/* Row 2: Two copy buttons side-by-side */}
+              <div className="flex gap-[10px]">
+                <Button
+                  variant={copiedWith ? "default" : "outline"}
+                  onClick={handleCopyWith}
+                  className={`flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium transition-all ${copiedWith ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : ""}`}
+                >
+                  {copiedWith
+                    ? <><Check className="w-4 h-4" /> Copied!</>
+                    : <><Copy className="w-4 h-4" /> Copy (With Prices)</>
+                  }
+                </Button>
+                <Button
+                  variant={copiedWithout ? "default" : "outline"}
+                  onClick={handleCopyWithout}
+                  className={`flex-1 gap-2 rounded-lg py-[10px] h-auto text-sm font-medium transition-all ${copiedWithout ? "bg-green-600 hover:bg-green-600 border-green-600 text-white" : ""}`}
+                >
+                  {copiedWithout
+                    ? <><Check className="w-4 h-4" /> Copied!</>
+                    : <><Copy className="w-4 h-4" /> Copy (No Prices)</>
+                  }
+                </Button>
+              </div>
             </div>
 
             {customers.length === 0 ? (
