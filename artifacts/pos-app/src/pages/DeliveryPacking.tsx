@@ -213,7 +213,7 @@ export default function DeliveryPacking() {
       if (grp) {
         tag = isFirst
           ? `[ ${grp.packageQty} ${grp.packageType} ]`
-          : `[          ]`;
+          : `[ ]`;
       }
       if (tag) {
         const spaces = " ".repeat(Math.max(2, PAD - left.length));
