@@ -160,16 +160,10 @@ export const CustomerReceiptPreview = forwardRef<HTMLDivElement, Props>(
         </table>
 
         {/* ── Total ── */}
-        <div
-          style={{
-            marginTop: 10,
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
-          <div style={{ width: 220, textAlign: "right" }}>
-            <div style={{ borderTop: "1px solid #555", marginBottom: 8 }} />
-            <div style={{ fontSize: 14, marginBottom: 5, color: "#333" }}>
+        <div style={{ marginTop: 10 }}>
+          <div style={{ borderTop: "1px solid #555", marginBottom: 8 }} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div style={{ fontSize: 14, color: "#333" }}>
               Total Bills : <strong>{invoices.length}</strong>
             </div>
             <div style={{ fontSize: 16, fontWeight: 700 }}>
