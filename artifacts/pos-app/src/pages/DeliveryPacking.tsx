@@ -190,35 +190,43 @@ export default function DeliveryPacking() {
     const dateStr = invoice.createdAt ?? invoice.date;
     const d = dateStr ? new Date(dateStr) : null;
     const dateFmt = d && !isNaN(d.getTime())
-      ? d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-          + ` (${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })})`
+      ? `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
       : "N/A";
 
     const lines: string[] = [
       "📦 វេចខ្ចប់ / Packing",
-      `Invoice  : ${invoice.invoiceNo}`,
+      "",
       `Customer : ${invoice.customerName}`,
+      "",
       `Date     : ${dateFmt}`,
+      "",
+      "─────────────────────",
+      "",
     ];
-    if (showDelivery && invoice.deliveryNo) lines.push(`Delivery : ${invoice.deliveryNo}`);
-    lines.push("", "─────────────────────");
 
     invoice.items.forEach((item, i) => {
       const grp = liveGroups.find(g => g.itemIndices.includes(i));
-      const pkg  = grp ? `  |  ${grp.packageQty} ${grp.packageType}` : "";
-      lines.push(`${i + 1}. ${item.productName} = ${item.qty}${pkg}`);
+      const isLastInGroup = grp
+        ? grp.itemIndices[grp.itemIndices.length - 1] === i
+        : false;
+      const tag = grp && isLastInGroup ? `  [ ${grp.packageQty} ${grp.packageType} ]` : "";
+      lines.push(`${i + 1}. ${item.productName} = ${item.qty}${tag}`);
     });
 
-    const totalPkg = liveGroups.reduce((s, g) => s + g.packageQty, 0);
-    const pkgSummary = liveGroups.length > 0
-      ? liveGroups.map(g => `${g.packageQty} ${g.packageType}`).join(", ")
+    // Total Package: sum qty per type, joined with " + "
+    const typeTotals = new Map<string, number>();
+    liveGroups.forEach(g => {
+      typeTotals.set(g.packageType, (typeTotals.get(g.packageType) ?? 0) + g.packageQty);
+    });
+    const totalSummary = typeTotals.size > 0
+      ? [...typeTotals.entries()].map(([type, qty]) => `${qty} ${type}`).join(" + ")
       : "—";
 
-    lines.push("─────────────────────");
-    lines.push(`Total Package : ${totalPkg > 0 ? pkgSummary : "—"}`);
+    lines.push("", "─────────────────────", "");
+    lines.push(`Total Package : ${totalSummary}`);
 
     try {
-      const res  = await fetch(
+      const res = await fetch(
         `https://api.telegram.org/bot${token}/sendMessage`,
         {
           method: "POST",

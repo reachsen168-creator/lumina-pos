@@ -1,6 +1,6 @@
 {
   "version": "2",
-  "exportedAt": "2026-03-13T19:08:07.311Z",
+  "exportedAt": "2026-03-14T04:03:54.990Z",
   "categories": [
     {
       "id": 1,
@@ -82,8 +82,8 @@
       "note": "VIP client",
       "createdDate": "2026-03-12",
       "createdAt": "2026-03-12T20:45:59.084Z",
-      "deletedAt": "2026-03-13T18:33:19.438Z",
-      "deletedBy": "Admin"
+      "deletedAt": null,
+      "deletedBy": null
     }
   ],
   "invoices": [
@@ -168,7 +168,7 @@
       "status": "Completed",
       "packingGroups": null,
       "createdAt": "2026-03-13T09:23:32.964Z",
-      "deletedAt": "2026-03-13T15:09:38.139Z",
+      "deletedAt": "2026-03-14T02:49:03.520Z",
       "deletedBy": "Admin"
     },
     {
@@ -180,7 +180,7 @@
       "deliveryId": 1,
       "note": null,
       "status": "Completed",
-      "packingGroups": "[{\"id\":\"wcfwheg\",\"itemIndices\":[0,1],\"packageType\":\"កេះ\",\"packageQty\":1}]",
+      "packingGroups": "[{\"id\":\"wcfwheg\",\"itemIndices\":[0,1],\"packageType\":\"កេះ\",\"packageQty\":1},{\"id\":\"8qfnyg4\",\"itemIndices\":[2],\"packageType\":\"កេះ\",\"packageQty\":1}]",
       "createdAt": "2026-03-13T16:49:40.361Z",
       "deletedAt": null,
       "deletedBy": null
@@ -941,6 +941,36 @@
       "description": "Deleted customer: Alice Wong",
       "date": "2026-03-13",
       "createdAt": "2026-03-13T18:33:19.478Z"
+    },
+    {
+      "id": 90,
+      "user": "Admin",
+      "action": "UPDATE",
+      "entity": "customer",
+      "entityId": 1,
+      "description": "Restored customer: Alice Wong",
+      "date": "2026-03-14",
+      "createdAt": "2026-03-14T02:47:21.024Z"
+    },
+    {
+      "id": 91,
+      "user": "Admin",
+      "action": "UPDATE",
+      "entity": "invoice",
+      "entityId": 40,
+      "description": "Restored invoice: INV-006 (Test)",
+      "date": "2026-03-14",
+      "createdAt": "2026-03-14T02:48:46.417Z"
+    },
+    {
+      "id": 92,
+      "user": "Admin",
+      "action": "DELETE",
+      "entity": "invoice",
+      "entityId": 40,
+      "description": "Deleted invoice INV-006 (Test)",
+      "date": "2026-03-14",
+      "createdAt": "2026-03-14T02:49:03.528Z"
     }
   ]
 }
