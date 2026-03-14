@@ -211,9 +211,8 @@ export default function DeliveryPacking() {
       const left = `${i + 1}. ${item.productName} = ${item.qty}`;
       let tag = "";
       if (grp) {
-        tag = isFirst
-          ? `[ ${grp.packageQty} ${grp.packageType} ]`
-          : `[ ]`;
+        const fullTag = `[ ${grp.packageQty} ${grp.packageType} ]`;
+        tag = isFirst ? fullTag : `[${" ".repeat(fullTag.length - 2)}]`;
       }
       if (tag) {
         const spaces = " ".repeat(Math.max(2, PAD - left.length));
