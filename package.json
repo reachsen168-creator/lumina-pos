@@ -10,6 +10,9 @@
     "typecheck": "pnpm run typecheck:libs"
   },
   "private": true,
+  "dependencies": {
+  "express": "^4.18.2"
+},
   "devDependencies": {
     "typescript": "~5.9.2",
     "prettier": "^3.8.1"
