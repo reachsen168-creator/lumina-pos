@@ -7,3 +7,4 @@ export * from "./damaged";
 export * from "./damage-records";
 export * from "./transfers";
 export * from "./history";
+export * from "./users";

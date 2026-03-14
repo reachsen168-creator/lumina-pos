@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { AutoSaveIndicator } from "@/components/AutoSaveIndicator";
 import { RecoveryDialog } from "@/components/RecoveryDialog";
+import { useAuth } from "@/context/AuthContext";
 import { 
   LayoutDashboard, Package, Tags, ReceiptText, 
   Users, Truck, HeartCrack, ArrowRightLeft, 
-  BarChart3, History, DatabaseBackup, Menu, X, ClipboardList, TrendingUp, Trash2, Settings2
+  BarChart3, History, DatabaseBackup, Menu, ClipboardList, TrendingUp, Trash2, Settings2, LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -32,6 +33,7 @@ const navItems = [
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   const NavContent = () => (
     <div className="flex flex-col h-full gap-2 p-4">
@@ -66,8 +68,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="px-3 py-1">
           <AutoSaveIndicator />
         </div>
-        <div className="px-3 py-2 text-xs text-muted-foreground font-medium">
-          Logged in as Admin
+        <div className="px-3 py-2 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-foreground truncate">{user?.username ?? "—"}</div>
+            <div className="text-[11px] text-muted-foreground capitalize">{user?.role ?? ""}</div>
+          </div>
+          <button
+            onClick={() => logout()}
+            className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>

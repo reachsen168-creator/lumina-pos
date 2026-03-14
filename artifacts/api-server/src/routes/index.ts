@@ -12,10 +12,12 @@ import reportsRouter from "./reports.js";
 import historyRouter from "./history.js";
 import backupRouter from "./backup.js";
 import trashRouter from "./trash.js";
+import authRouter from "./auth.js";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use("/auth", authRouter);
 router.use("/categories", categoriesRouter);
 router.use("/products", productsRouter);
 router.use("/invoices", invoicesRouter);
