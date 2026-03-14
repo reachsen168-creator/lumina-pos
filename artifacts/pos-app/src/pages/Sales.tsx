@@ -14,7 +14,7 @@ import { DateShortcuts } from "@/components/ui/date-shortcuts";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus, Search, FileText, Trash2, Edit, Truck,
-  ChevronDown, ChevronUp, Clipboard, FileDown, Share2, Package, AlertTriangle, ShieldAlert
+  ChevronDown, ChevronUp, Clipboard, FileDown, Share2, Package, AlertTriangle, ShieldAlert, Send
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -263,6 +263,39 @@ export default function Sales() {
     }
   };
 
+  const handleSendTelegram = async (id: number) => {
+    const token  = localStorage.getItem("lumina_tg_token")?.trim();
+    const chatId = localStorage.getItem("lumina_tg_chat")?.trim();
+    if (!token || !chatId) {
+      toast({
+        title: "Telegram not configured",
+        description: "Go to Settings and enter your bot token and chat ID.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      const inv = await fetch(`/api/invoices/${id}`).then(r => r.json()) as FullInvoice;
+      const text = buildText(inv, showDelivery);
+      const res  = await fetch(
+        `https://api.telegram.org/bot${token}/sendMessage`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text, parse_mode: "" }),
+        }
+      );
+      const json = await res.json();
+      if (json.ok) {
+        toast({ title: "Invoice sent to Telegram!" });
+      } else {
+        toast({ title: `Telegram: ${json.description}`, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Failed to send to Telegram", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -424,6 +457,13 @@ export default function Sales() {
                         onClick={() => handleShareImage(inv.id, inv.invoiceNo)}
                       >
                         <Share2 className="w-3.5 h-3.5 mr-1" /> Share Image
+                      </Button>
+                      <Button
+                        variant="ghost" size="sm"
+                        className="text-muted-foreground hover:text-[#229ED9] h-8 px-2 text-xs"
+                        onClick={() => handleSendTelegram(inv.id)}
+                      >
+                        <Send className="w-3.5 h-3.5 mr-1" /> Telegram
                       </Button>
                       <Link href={`/sales/${inv.id}/packing`}>
                         <Button
