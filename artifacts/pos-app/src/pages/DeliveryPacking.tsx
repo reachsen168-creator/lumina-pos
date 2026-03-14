@@ -204,13 +204,23 @@ export default function DeliveryPacking() {
       "",
     ];
 
+    const PAD = 32;
     invoice.items.forEach((item, i) => {
       const grp = liveGroups.find(g => g.itemIndices.includes(i));
-      const isLastInGroup = grp
-        ? grp.itemIndices[grp.itemIndices.length - 1] === i
-        : false;
-      const tag = grp && isLastInGroup ? `  [ ${grp.packageQty} ${grp.packageType} ]` : "";
-      lines.push(`${i + 1}. ${item.productName} = ${item.qty}${tag}`);
+      const isFirst = grp ? grp.itemIndices[0] === i : false;
+      const left = `${item.productName} = ${item.qty}`;
+      let tag = "";
+      if (grp) {
+        tag = isFirst
+          ? `[ ${grp.packageQty} ${grp.packageType} ]`
+          : `[ ........ ]`;
+      }
+      if (tag) {
+        const spaces = " ".repeat(Math.max(2, PAD - left.length));
+        lines.push(`${left}${spaces}${tag}`);
+      } else {
+        lines.push(left);
+      }
     });
 
     // Total Package: sum qty per type, joined with " + "
