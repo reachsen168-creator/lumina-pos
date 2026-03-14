@@ -36,13 +36,13 @@ function fmt$(n: number) {
 }
 
 function buildTelegramText(inv: FullInvoice, showDelivery: boolean): string {
-  const dateStr = safeFormatDate(inv.createdAt ?? inv.date, "dd MMM yyyy HH:mm");
+  const dateStr = safeFormatDate(inv.createdAt ?? inv.date, "dd MMM yyyy");
+  const timeStr = safeFormatDate(inv.createdAt ?? inv.date, "HH:mm");
   const lines: string[] = [
     "🧾 វិក័យបត្រ",
-    "",
     `Invoice  : ${inv.invoiceNo}`,
     `Customer : ${inv.customerName}`,
-    `Date     : ${dateStr}`,
+    `Date     : ${dateStr} (${timeStr})`,
   ];
   if (showDelivery && inv.deliveryNo) lines.push(`Delivery : ${inv.deliveryNo}`);
   if (inv.note) lines.push(`Note     : ${inv.note}`);
@@ -51,8 +51,7 @@ function buildTelegramText(inv: FullInvoice, showDelivery: boolean): string {
   inv.items.forEach((item, i) => {
     const subtotal = Number(item.subtotal).toFixed(2);
     const price    = Number(item.price).toFixed(2);
-    lines.push(`${i + 1}. ${item.productName}`);
-    lines.push(`   ${item.qty} × $${price} = $${subtotal}`);
+    lines.push(`${i + 1}. ${item.productName} = ${item.qty} × $${price} = $${subtotal}`);
   });
 
   lines.push("─────────────────────");
