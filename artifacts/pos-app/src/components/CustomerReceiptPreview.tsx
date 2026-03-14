@@ -24,7 +24,8 @@ interface Props {
 }
 
 function fmt$(n: number) {
-  return `$${Number(n).toFixed(2)}`;
+  const v = Number(n).toFixed(2);
+  return v.endsWith(".00") ? `$${Number(n).toFixed(0)}` : `$${v}`;
 }
 
 function fmtDate(val: string): string {
@@ -36,99 +37,142 @@ function fmtDate(val: string): string {
   return `${dd}/${mm}/${d.getFullYear()}`;
 }
 
+/* A4 at 96 dpi = 794 × 1123 px */
+const A4_W = 794;
+const A4_H = 1123;
+const PAD_X = 64;
+const PAD_TOP = 60;
+
+const FONT = "'Noto Sans Khmer', 'Khmer OS', Georgia, serif";
+
 export const CustomerReceiptPreview = forwardRef<HTMLDivElement, Props>(
   ({ customerName, dateFrom, dateTo, invoices }, ref) => {
     const grandTotal = invoices.reduce((s, inv) => s + Number(inv.total), 0);
-
-    const FONT = "'Noto Sans Khmer', 'Khmer OS', Arial, sans-serif";
 
     return (
       <div
         ref={ref}
         style={{
           fontFamily: FONT,
+          width: A4_W,
+          height: A4_H,
           backgroundColor: "#fff",
-          width: 680,
-          padding: "48px 56px 56px",
           boxSizing: "border-box",
+          padding: `${PAD_TOP}px ${PAD_X}px 60px`,
           color: "#1a1a1a",
+          position: "relative",
         }}
       >
-        {/* ── Header ── */}
+        {/* ── Title block (centered) ── */}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.5 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 0.4, marginBottom: 6 }}>
             Customer Receipt
           </div>
-          <div style={{ fontSize: 14, marginTop: 6 }}>
+          <div style={{ fontSize: 15, marginBottom: 4 }}>
             Customer : <strong>{customerName}</strong>
           </div>
           {(dateFrom || dateTo) && (
-            <div style={{ fontSize: 13, color: "#444", marginTop: 4 }}>
-              From : {dateFrom ? fmtDate(dateFrom) : "—"}&nbsp;&nbsp;–&nbsp;&nbsp;To : {dateTo ? fmtDate(dateTo) : "—"}
+            <div style={{ fontSize: 14, color: "#333" }}>
+              From. {dateFrom ? fmtDate(dateFrom) : "—"}&nbsp; – &nbsp;To: {dateTo ? fmtDate(dateTo) : "—"}
             </div>
           )}
         </div>
 
-        {/* ── Divider ── */}
-        <div style={{ borderTop: "1.5px solid #1a1a1a", marginBottom: 20 }} />
+        {/* ── Thin separator ── */}
+        <div style={{ borderTop: "1px solid #888", marginBottom: 20 }} />
 
-        {/* ── Invoice rows ── */}
-        <div style={{ fontSize: 13 }}>
-          {invoices.map((inv) => (
-            <div key={inv.invoiceId} style={{ marginBottom: 10 }}>
-              {inv.items.map((item, i) => (
-                <div
-                  key={item.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "baseline",
-                    marginBottom: 4,
-                    gap: 8,
-                  }}
-                >
-                  {/* Left: date (first item only) + product name */}
-                  <div style={{ display: "flex", gap: 8, flex: 1 }}>
-                    <span
-                      style={{
-                        fontSize: 13,
-                        color: "#1a1a1a",
-                        fontWeight: i === 0 ? 600 : 400,
-                        minWidth: 100,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {i === 0 ? fmtDate(inv.date) : ""}
-                    </span>
-                    <span style={{ color: "#555", marginRight: 2 }}>
-                      {i === 0 ? "." : "-"}
-                    </span>
-                    <span style={{ flex: 1 }}>{item.productName}</span>
-                  </div>
+        {/* ── Items table ── */}
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: 14,
+            tableLayout: "fixed",
+          }}
+        >
+          <colgroup>
+            <col style={{ width: 116 }} /> {/* date */}
+            <col style={{ width: 14 }} />  {/* dot/dash */}
+            <col />                         {/* product name — flex */}
+            <col style={{ width: 180 }} /> {/* qty × price = sub */}
+          </colgroup>
+          <tbody>
+            {invoices.map((inv) =>
+              inv.items.map((item, i) => (
+                <tr key={`${inv.invoiceId}-${item.id}`}>
+                  {/* Date — only on first item of this invoice */}
+                  <td
+                    style={{
+                      paddingBottom: 6,
+                      paddingRight: 6,
+                      verticalAlign: "top",
+                      fontWeight: i === 0 ? 600 : 400,
+                      color: i === 0 ? "#1a1a1a" : "transparent",
+                      whiteSpace: "nowrap",
+                      fontSize: 13,
+                      userSelect: "none",
+                    }}
+                  >
+                    {fmtDate(inv.date)}
+                  </td>
 
-                  {/* Right: qty × price = subtotal */}
-                  <span style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                  {/* Dot / dash */}
+                  <td
+                    style={{
+                      paddingBottom: 6,
+                      verticalAlign: "top",
+                      color: "#444",
+                      fontWeight: 700,
+                      textAlign: "center",
+                    }}
+                  >
+                    {i === 0 ? "." : "-"}
+                  </td>
+
+                  {/* Product name */}
+                  <td
+                    style={{
+                      paddingBottom: 6,
+                      paddingLeft: 6,
+                      paddingRight: 8,
+                      verticalAlign: "top",
+                    }}
+                  >
+                    {item.productName}
+                  </td>
+
+                  {/* qty × price = subtotal — right aligned */}
+                  <td
+                    style={{
+                      paddingBottom: 6,
+                      textAlign: "right",
+                      verticalAlign: "top",
+                      whiteSpace: "nowrap",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
                     {item.qty} × {fmt$(item.price)} = {fmt$(item.subtotal)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
 
-        {/* ── Divider + Total ── */}
+        {/* ── Total ── */}
         <div
           style={{
-            borderTop: "1.5px solid #1a1a1a",
-            marginTop: 12,
-            paddingTop: 12,
+            marginTop: 10,
             display: "flex",
             justifyContent: "flex-end",
           }}
         >
-          <span style={{ fontSize: 15, fontWeight: 700 }}>
-            Total All : {fmt$(grandTotal)}
-          </span>
+          <div style={{ width: 180, textAlign: "right" }}>
+            <div style={{ borderTop: "1px solid #555", marginBottom: 6 }} />
+            <span style={{ fontSize: 16, fontWeight: 700 }}>
+              Total All . {fmt$(grandTotal)}
+            </span>
+          </div>
         </div>
       </div>
     );
