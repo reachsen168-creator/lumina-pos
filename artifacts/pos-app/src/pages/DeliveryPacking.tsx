@@ -33,6 +33,7 @@ export default function DeliveryPacking() {
   const [newPkgType, setNewPkgType]     = useState("កេះ");
   const [newPkgQty, setNewPkgQty]       = useState(1);
   const [sharing, setSharing]           = useState(false);
+  const [sendingTg, setSendingTg]       = useState(false);
   const [saving, setSaving]             = useState(false);
   const [showDelivery, setShowDelivery] = useState(true);
 
@@ -174,7 +175,7 @@ export default function DeliveryPacking() {
     }
   };
 
-  /* ── Send to Telegram ── */
+  /* ── Send packing image to Telegram ── */
   const handleSendTelegram = async () => {
     const token  = localStorage.getItem("lumina_tg_token")?.trim();
     const chatId = localStorage.getItem("lumina_tg_chat")?.trim();
@@ -186,67 +187,37 @@ export default function DeliveryPacking() {
       });
       return;
     }
-
-    const dateStr = invoice.createdAt ?? invoice.date;
-    const d = dateStr ? new Date(dateStr) : null;
-    const dateFmt = d && !isNaN(d.getTime())
-      ? `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
-      : "N/A";
-
-    const lines: string[] = [
-      "📦 វេចខ្ចប់ / Packing",
-      `Customer : ${invoice.customerName}`,
-      `Date     : ${dateFmt}`,
-      "─────────────────────",
-    ];
-
-    const PAD = 32;
-    invoice.items.forEach((item, i) => {
-      const grp = liveGroups.find(g => g.itemIndices.includes(i));
-      const isFirst = grp ? grp.itemIndices[0] === i : false;
-      const left = `${i + 1}. ${item.productName} = ${item.qty}`;
-      let tag = "";
-      if (grp) {
-        const fullTag = `[ ${grp.packageQty} ${grp.packageType} ]`;
-        tag = isFirst ? fullTag : `[${" ".repeat(fullTag.length - 2)}]`;
-      }
-      if (tag) {
-        const spaces = " ".repeat(Math.max(2, PAD - left.length));
-        lines.push(`${left}${spaces}${tag}`);
-      } else {
-        lines.push(left);
-      }
-    });
-
-    // Total Package: sum qty per type, joined with " + "
-    const typeTotals = new Map<string, number>();
-    liveGroups.forEach(g => {
-      typeTotals.set(g.packageType, (typeTotals.get(g.packageType) ?? 0) + g.packageQty);
-    });
-    const totalSummary = typeTotals.size > 0
-      ? [...typeTotals.entries()].map(([type, qty]) => `${qty} ${type}`).join(" + ")
-      : "—";
-
-    lines.push("─────────────────────");
-    lines.push(`Total Package : ${totalSummary}`);
-
+    if (!previewRef.current) return;
+    setSendingTg(true);
     try {
+      await document.fonts.ready;
+      const canvas = await html2canvas(previewRef.current, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+      const blob = await new Promise<Blob>((res, rej) =>
+        canvas.toBlob(b => b ? res(b) : rej(new Error("toBlob")), "image/png")
+      );
+      const filename = `${invoice.invoiceNo}-packing.png`;
+      const form = new FormData();
+      form.append("chat_id", chatId);
+      form.append("photo", new File([blob], filename, { type: "image/png" }));
+
       const res = await fetch(
-        `https://api.telegram.org/bot${token}/sendMessage`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: chatId, text: lines.join("\n"), parse_mode: "" }),
-        }
+        `https://api.telegram.org/bot${token}/sendPhoto`,
+        { method: "POST", body: form }
       );
       const json = await res.json();
       if (json.ok) {
-        toast({ title: "Packing sent to Telegram!" });
+        toast({ title: "Packing image sent to Telegram!" });
       } else {
         toast({ title: `Telegram: ${json.description}`, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Failed to send to Telegram", variant: "destructive" });
+      toast({ title: "Failed to send image to Telegram", variant: "destructive" });
+    } finally {
+      setSendingTg(false);
     }
   };
 
@@ -473,11 +444,12 @@ export default function DeliveryPacking() {
             </label>
             <Button
               onClick={handleSendTelegram}
+              disabled={sendingTg}
               variant="outline"
               className="h-9 gap-2 border-[#229ED9] text-[#229ED9] hover:bg-[#229ED9]/10"
             >
               <Send className="w-4 h-4" />
-              Telegram
+              {sendingTg ? "Sending…" : "Telegram"}
             </Button>
             <Button
               onClick={handleShare}
