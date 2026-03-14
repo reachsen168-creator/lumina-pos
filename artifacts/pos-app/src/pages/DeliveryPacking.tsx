@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Plus, Trash2, Share2, Package, Save, Pencil, Check, X } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Share2, Package, Save, Pencil, Check, X, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { DeliveryPackingPreview, type PackageGroup } from "@/components/DeliveryPackingPreview";
 import type { FullInvoice } from "@/components/InvoicePreview";
@@ -171,6 +171,69 @@ export default function DeliveryPacking() {
       if (err?.name !== "AbortError") toast({ title: "Failed to share", variant: "destructive" });
     } finally {
       setSharing(false);
+    }
+  };
+
+  /* ── Send to Telegram ── */
+  const handleSendTelegram = async () => {
+    const token  = localStorage.getItem("lumina_tg_token")?.trim();
+    const chatId = localStorage.getItem("lumina_tg_chat")?.trim();
+    if (!token || !chatId) {
+      toast({
+        title: "Telegram not configured",
+        description: "Go to Settings and enter your bot token and chat ID.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const dateStr = invoice.createdAt ?? invoice.date;
+    const d = dateStr ? new Date(dateStr) : null;
+    const dateFmt = d && !isNaN(d.getTime())
+      ? d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+          + ` (${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })})`
+      : "N/A";
+
+    const lines: string[] = [
+      "📦 វេចខ្ចប់ / Packing",
+      `Invoice  : ${invoice.invoiceNo}`,
+      `Customer : ${invoice.customerName}`,
+      `Date     : ${dateFmt}`,
+    ];
+    if (showDelivery && invoice.deliveryNo) lines.push(`Delivery : ${invoice.deliveryNo}`);
+    lines.push("", "─────────────────────");
+
+    invoice.items.forEach((item, i) => {
+      const grp = liveGroups.find(g => g.itemIndices.includes(i));
+      const pkg  = grp ? `  |  ${grp.packageQty} ${grp.packageType}` : "";
+      lines.push(`${i + 1}. ${item.productName} = ${item.qty}${pkg}`);
+    });
+
+    const totalPkg = liveGroups.reduce((s, g) => s + g.packageQty, 0);
+    const pkgSummary = liveGroups.length > 0
+      ? liveGroups.map(g => `${g.packageQty} ${g.packageType}`).join(", ")
+      : "—";
+
+    lines.push("─────────────────────");
+    lines.push(`Total Package : ${totalPkg > 0 ? pkgSummary : "—"}`);
+
+    try {
+      const res  = await fetch(
+        `https://api.telegram.org/bot${token}/sendMessage`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text: lines.join("\n"), parse_mode: "" }),
+        }
+      );
+      const json = await res.json();
+      if (json.ok) {
+        toast({ title: "Packing sent to Telegram!" });
+      } else {
+        toast({ title: `Telegram: ${json.description}`, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Failed to send to Telegram", variant: "destructive" });
     }
   };
 
@@ -395,6 +458,14 @@ export default function DeliveryPacking() {
               />
               Show Delivery Name
             </label>
+            <Button
+              onClick={handleSendTelegram}
+              variant="outline"
+              className="h-9 gap-2 border-[#229ED9] text-[#229ED9] hover:bg-[#229ED9]/10"
+            >
+              <Send className="w-4 h-4" />
+              Telegram
+            </Button>
             <Button
               onClick={handleShare}
               disabled={sharing}
