@@ -208,12 +208,12 @@ export default function DeliveryPacking() {
     invoice.items.forEach((item, i) => {
       const grp = liveGroups.find(g => g.itemIndices.includes(i));
       const isFirst = grp ? grp.itemIndices[0] === i : false;
-      const left = `${item.productName} = ${item.qty}`;
+      const left = `${i + 1}. ${item.productName} = ${item.qty}`;
       let tag = "";
       if (grp) {
         tag = isFirst
           ? `[ ${grp.packageQty} ${grp.packageType} ]`
-          : `[ ........ ]`;
+          : `[          ]`;
       }
       if (tag) {
         const spaces = " ".repeat(Math.max(2, PAD - left.length));
