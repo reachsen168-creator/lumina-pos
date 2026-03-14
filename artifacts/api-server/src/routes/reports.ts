@@ -382,8 +382,9 @@ router.get("/customer-receipt", async (req, res) => {
   }).sort((a, b) => a.date.localeCompare(b.date));
 
   const totalAmount = dateGroups.reduce((s, g) => s + g.dayTotal, 0);
+  const totalBills  = invoices.length;
 
-  res.json({ customer: customer.trim(), dateFrom: from, dateTo: to, dateGroups, totalAmount });
+  res.json({ customer: customer.trim(), dateFrom: from, dateTo: to, dateGroups, totalAmount, totalBills });
 });
 
 export default router;

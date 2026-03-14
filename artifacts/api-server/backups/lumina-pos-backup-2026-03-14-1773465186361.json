@@ -1,6 +1,6 @@
 {
   "version": "2",
-  "exportedAt": "2026-03-14T02:21:08.316Z",
+  "exportedAt": "2026-03-14T05:13:06.361Z",
   "categories": [
     {
       "id": 1,
@@ -82,8 +82,8 @@
       "note": "VIP client",
       "createdDate": "2026-03-12",
       "createdAt": "2026-03-12T20:45:59.084Z",
-      "deletedAt": "2026-03-13T18:33:19.438Z",
-      "deletedBy": "Admin"
+      "deletedAt": null,
+      "deletedBy": null
     }
   ],
   "invoices": [
@@ -168,7 +168,7 @@
       "status": "Completed",
       "packingGroups": null,
       "createdAt": "2026-03-13T09:23:32.964Z",
-      "deletedAt": "2026-03-13T15:09:38.139Z",
+      "deletedAt": "2026-03-14T02:49:03.520Z",
       "deletedBy": "Admin"
     },
     {
@@ -182,6 +182,20 @@
       "status": "Completed",
       "packingGroups": "[{\"id\":\"wcfwheg\",\"itemIndices\":[0,1],\"packageType\":\"កេះ\",\"packageQty\":1}]",
       "createdAt": "2026-03-13T16:49:40.361Z",
+      "deletedAt": null,
+      "deletedBy": null
+    },
+    {
+      "id": 43,
+      "invoiceNo": "INV-009",
+      "customerName": "លីហេង",
+      "date": "2026-03-14",
+      "total": "55.00",
+      "deliveryId": null,
+      "note": null,
+      "status": "Completed",
+      "packingGroups": null,
+      "createdAt": "2026-03-14T04:45:12.053Z",
       "deletedAt": null,
       "deletedBy": null
     }
@@ -285,6 +299,15 @@
       "price": "5.00",
       "subtotal": "5.00",
       "createdAt": "2026-03-13T17:49:16.260Z"
+    },
+    {
+      "id": 62,
+      "invoiceId": 43,
+      "productId": 1,
+      "qty": "1.00",
+      "price": "55.00",
+      "subtotal": "55.00",
+      "createdAt": "2026-03-14T04:45:12.053Z"
     }
   ],
   "deliveries": [
@@ -941,6 +964,46 @@
       "description": "Deleted customer: Alice Wong",
       "date": "2026-03-13",
       "createdAt": "2026-03-13T18:33:19.478Z"
+    },
+    {
+      "id": 90,
+      "user": "Admin",
+      "action": "UPDATE",
+      "entity": "customer",
+      "entityId": 1,
+      "description": "Restored customer: Alice Wong",
+      "date": "2026-03-14",
+      "createdAt": "2026-03-14T02:47:21.024Z"
+    },
+    {
+      "id": 91,
+      "user": "Admin",
+      "action": "UPDATE",
+      "entity": "invoice",
+      "entityId": 40,
+      "description": "Restored invoice: INV-006 (Test)",
+      "date": "2026-03-14",
+      "createdAt": "2026-03-14T02:48:46.417Z"
+    },
+    {
+      "id": 92,
+      "user": "Admin",
+      "action": "DELETE",
+      "entity": "invoice",
+      "entityId": 40,
+      "description": "Deleted invoice INV-006 (Test)",
+      "date": "2026-03-14",
+      "createdAt": "2026-03-14T02:49:03.528Z"
+    },
+    {
+      "id": 93,
+      "user": "Admin",
+      "action": "CREATE",
+      "entity": "invoice",
+      "entityId": 43,
+      "description": "Created invoice INV-009 for លីហេង",
+      "date": "2026-03-14",
+      "createdAt": "2026-03-14T04:45:12.096Z"
     }
   ]
 }

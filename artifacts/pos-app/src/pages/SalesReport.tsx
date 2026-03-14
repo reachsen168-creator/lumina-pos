@@ -34,7 +34,7 @@ interface SalesReportData {
 
 interface ReceiptItem  { productName: string; qty: number; price: number; total: number }
 interface ReceiptGroup { date: string; items: ReceiptItem[]; dayTotal: number }
-interface ReceiptData  { customer: string; dateFrom: string; dateTo: string; dateGroups: ReceiptGroup[]; totalAmount: number }
+interface ReceiptData  { customer: string; dateFrom: string; dateTo: string; dateGroups: ReceiptGroup[]; totalAmount: number; totalBills: number }
 
 interface CustomerRow { id: number; name: string }
 
@@ -463,8 +463,15 @@ function ReceiptPrintView({ data, printRef }: { data: ReceiptData; printRef: Rea
         </div>
       ))}
 
-      <div style={{ borderTop: "2px solid #1a1a1a", marginTop: 8, paddingTop: 12, textAlign: "right", fontSize: 15, fontWeight: 800 }}>
-        TOTAL ALL : {fmt(data.totalAmount)}
+      <div style={{ borderTop: "2px solid #1a1a1a", marginTop: 8, paddingTop: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>
+            Total Bills : {data.totalBills}
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 800 }}>
+            TOTAL ALL : {fmt(data.totalAmount)}
+          </div>
+        </div>
       </div>
     </div>
   );
