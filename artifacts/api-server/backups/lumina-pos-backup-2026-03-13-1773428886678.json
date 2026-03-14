@@ -1,6 +1,6 @@
 {
   "version": "2",
-  "exportedAt": "2026-03-13T17:06:14.231Z",
+  "exportedAt": "2026-03-13T19:08:06.678Z",
   "categories": [
     {
       "id": 1,
@@ -56,16 +56,6 @@
   ],
   "customers": [
     {
-      "id": 1,
-      "name": "Alice Wong",
-      "phone": "555-1234",
-      "note": "VIP client",
-      "createdDate": "2026-03-12",
-      "createdAt": "2026-03-12T20:45:59.084Z",
-      "deletedAt": null,
-      "deletedBy": null
-    },
-    {
       "id": 2,
       "name": "លីហេង",
       "phone": null,
@@ -84,6 +74,16 @@
       "createdAt": "2026-03-13T05:35:59.874Z",
       "deletedAt": null,
       "deletedBy": null
+    },
+    {
+      "id": 1,
+      "name": "Alice Wong",
+      "phone": "555-1234",
+      "note": "VIP client",
+      "createdDate": "2026-03-12",
+      "createdAt": "2026-03-12T20:45:59.084Z",
+      "deletedAt": "2026-03-13T18:33:19.438Z",
+      "deletedBy": "Admin"
     }
   ],
   "invoices": [
@@ -176,11 +176,11 @@
       "invoiceNo": "INV-008",
       "customerName": "លីហេង",
       "date": "2026-03-13",
-      "total": "5.00",
+      "total": "75.00",
       "deliveryId": 1,
       "note": null,
       "status": "Completed",
-      "packingGroups": null,
+      "packingGroups": "[{\"id\":\"wcfwheg\",\"itemIndices\":[0,1],\"packageType\":\"កេះ\",\"packageQty\":1}]",
       "createdAt": "2026-03-13T16:49:40.361Z",
       "deletedAt": null,
       "deletedBy": null
@@ -260,13 +260,31 @@
       "createdAt": "2026-03-13T12:50:43.092Z"
     },
     {
-      "id": 56,
+      "id": 59,
       "invoiceId": 42,
       "productId": 3,
+      "qty": "3.00",
+      "price": "5.00",
+      "subtotal": "15.00",
+      "createdAt": "2026-03-13T17:49:16.260Z"
+    },
+    {
+      "id": 60,
+      "invoiceId": 42,
+      "productId": 1,
+      "qty": "1.00",
+      "price": "55.00",
+      "subtotal": "55.00",
+      "createdAt": "2026-03-13T17:49:16.260Z"
+    },
+    {
+      "id": 61,
+      "invoiceId": 42,
+      "productId": 2,
       "qty": "1.00",
       "price": "5.00",
       "subtotal": "5.00",
-      "createdAt": "2026-03-13T16:50:07.524Z"
+      "createdAt": "2026-03-13T17:49:16.260Z"
     }
   ],
   "deliveries": [
@@ -893,6 +911,36 @@
       "description": "Updated invoice id: 42",
       "date": "2026-03-13",
       "createdAt": "2026-03-13T16:50:07.535Z"
+    },
+    {
+      "id": 87,
+      "user": "Admin",
+      "action": "UPDATE",
+      "entity": "invoice",
+      "entityId": 42,
+      "description": "Updated invoice id: 42",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T17:11:56.094Z"
+    },
+    {
+      "id": 88,
+      "user": "Admin",
+      "action": "UPDATE",
+      "entity": "invoice",
+      "entityId": 42,
+      "description": "Updated invoice id: 42",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T17:49:16.305Z"
+    },
+    {
+      "id": 89,
+      "user": "Admin",
+      "action": "DELETE",
+      "entity": "customer",
+      "entityId": 1,
+      "description": "Deleted customer: Alice Wong",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T18:33:19.478Z"
     }
   ]
 }
