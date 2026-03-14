@@ -34,6 +34,7 @@ export default function DeliveryPacking() {
   const [newPkgQty, setNewPkgQty]       = useState(1);
   const [sharing, setSharing]           = useState(false);
   const [sendingTg, setSendingTg]       = useState(false);
+  const [sendingTgText, setSendingTgText] = useState(false);
   const [saving, setSaving]             = useState(false);
   const [showDelivery, setShowDelivery] = useState(true);
 
@@ -218,6 +219,83 @@ export default function DeliveryPacking() {
       toast({ title: "Failed to send image to Telegram", variant: "destructive" });
     } finally {
       setSendingTg(false);
+    }
+  };
+
+  /* ── Send packing text to Telegram ── */
+  const handleSendTelegramText = async () => {
+    const token  = localStorage.getItem("lumina_tg_token")?.trim();
+    const chatId = localStorage.getItem("lumina_tg_chat")?.trim();
+    if (!token || !chatId) {
+      toast({
+        title: "Telegram not configured",
+        description: "Go to Settings and enter your bot token and chat ID.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSendingTgText(true);
+    try {
+      const dateStr = invoice.createdAt ?? invoice.date;
+      const d = dateStr ? new Date(dateStr) : null;
+      const dateFmt = d && !isNaN(d.getTime())
+        ? `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+        : "N/A";
+
+      const lines: string[] = [
+        "📦 វេចខ្ចប់ / Packing",
+        `Customer : ${invoice.customerName}`,
+        `Date     : ${dateFmt}`,
+        "─────────────────────",
+      ];
+
+      const PAD = 32;
+      invoice.items.forEach((item, i) => {
+        const grp = liveGroups.find(g => g.itemIndices.includes(i));
+        const isFirst = grp ? grp.itemIndices[0] === i : false;
+        const left = `${i + 1}. ${item.productName} = ${item.qty}`;
+        let tag = "";
+        if (grp) {
+          const fullTag = `[ ${grp.packageQty} ${grp.packageType} ]`;
+          tag = isFirst ? fullTag : `[${" ".repeat(fullTag.length - 2)}]`;
+        }
+        if (tag) {
+          const spaces = " ".repeat(Math.max(2, PAD - left.length));
+          lines.push(`${left}${spaces}${tag}`);
+        } else {
+          lines.push(left);
+        }
+      });
+
+      const typeTotals = new Map<string, number>();
+      liveGroups.forEach(g => {
+        typeTotals.set(g.packageType, (typeTotals.get(g.packageType) ?? 0) + g.packageQty);
+      });
+      const totalSummary = typeTotals.size > 0
+        ? [...typeTotals.entries()].map(([type, qty]) => `${qty} ${type}`).join(" + ")
+        : "—";
+
+      lines.push("─────────────────────");
+      lines.push(`Total Package : ${totalSummary}`);
+
+      const res = await fetch(
+        `https://api.telegram.org/bot${token}/sendMessage`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text: lines.join("\n"), parse_mode: "" }),
+        }
+      );
+      const json = await res.json();
+      if (json.ok) {
+        toast({ title: "Packing text sent to Telegram!" });
+      } else {
+        toast({ title: `Telegram: ${json.description}`, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Failed to send text to Telegram", variant: "destructive" });
+    } finally {
+      setSendingTgText(false);
     }
   };
 
@@ -443,13 +521,22 @@ export default function DeliveryPacking() {
               Show Delivery Name
             </label>
             <Button
+              onClick={handleSendTelegramText}
+              disabled={sendingTgText}
+              variant="outline"
+              className="h-9 gap-2 border-[#229ED9] text-[#229ED9] hover:bg-[#229ED9]/10"
+            >
+              <Send className="w-4 h-4" />
+              {sendingTgText ? "Sending…" : "TG Text"}
+            </Button>
+            <Button
               onClick={handleSendTelegram}
               disabled={sendingTg}
               variant="outline"
               className="h-9 gap-2 border-[#229ED9] text-[#229ED9] hover:bg-[#229ED9]/10"
             >
               <Send className="w-4 h-4" />
-              {sendingTg ? "Sending…" : "Telegram"}
+              {sendingTg ? "Sending…" : "TG Image"}
             </Button>
             <Button
               onClick={handleShare}
