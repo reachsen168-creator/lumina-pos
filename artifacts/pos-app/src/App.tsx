@@ -26,7 +26,14 @@ import DeliveryReport from "@/pages/DeliveryReport";
 import SalesReport from "@/pages/SalesReport";
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } }
+  defaultOptions: {
+    queries: {
+      retry:               false,
+      refetchOnWindowFocus: false,
+      staleTime:           60_000,
+      gcTime:              5 * 60_000,
+    },
+  },
 });
 
 function Router() {
