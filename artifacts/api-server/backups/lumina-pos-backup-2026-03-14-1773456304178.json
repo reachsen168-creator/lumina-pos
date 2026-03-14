@@ -1,6 +1,6 @@
 {
   "version": "2",
-  "exportedAt": "2026-03-13T18:32:05.877Z",
+  "exportedAt": "2026-03-14T02:45:04.178Z",
   "categories": [
     {
       "id": 1,
@@ -56,16 +56,6 @@
   ],
   "customers": [
     {
-      "id": 1,
-      "name": "Alice Wong",
-      "phone": "555-1234",
-      "note": "VIP client",
-      "createdDate": "2026-03-12",
-      "createdAt": "2026-03-12T20:45:59.084Z",
-      "deletedAt": null,
-      "deletedBy": null
-    },
-    {
       "id": 2,
       "name": "លីហេង",
       "phone": null,
@@ -84,6 +74,16 @@
       "createdAt": "2026-03-13T05:35:59.874Z",
       "deletedAt": null,
       "deletedBy": null
+    },
+    {
+      "id": 1,
+      "name": "Alice Wong",
+      "phone": "555-1234",
+      "note": "VIP client",
+      "createdDate": "2026-03-12",
+      "createdAt": "2026-03-12T20:45:59.084Z",
+      "deletedAt": "2026-03-13T18:33:19.438Z",
+      "deletedBy": "Admin"
     }
   ],
   "invoices": [
@@ -931,6 +931,16 @@
       "description": "Updated invoice id: 42",
       "date": "2026-03-13",
       "createdAt": "2026-03-13T17:49:16.305Z"
+    },
+    {
+      "id": 89,
+      "user": "Admin",
+      "action": "DELETE",
+      "entity": "customer",
+      "entityId": 1,
+      "description": "Deleted customer: Alice Wong",
+      "date": "2026-03-13",
+      "createdAt": "2026-03-13T18:33:19.478Z"
     }
   ]
 }
