@@ -195,13 +195,9 @@ export default function DeliveryPacking() {
 
     const lines: string[] = [
       "📦 វេចខ្ចប់ / Packing",
-      "",
       `Customer : ${invoice.customerName}`,
-      "",
       `Date     : ${dateFmt}`,
-      "",
       "─────────────────────",
-      "",
     ];
 
     const PAD = 32;
@@ -231,7 +227,7 @@ export default function DeliveryPacking() {
       ? [...typeTotals.entries()].map(([type, qty]) => `${qty} ${type}`).join(" + ")
       : "—";
 
-    lines.push("", "─────────────────────", "");
+    lines.push("─────────────────────");
     lines.push(`Total Package : ${totalSummary}`);
 
     try {
