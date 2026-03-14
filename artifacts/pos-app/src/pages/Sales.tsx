@@ -35,6 +35,32 @@ function fmt$(n: number) {
   return `${Number(n).toFixed(2)}$`;
 }
 
+function buildTelegramText(inv: FullInvoice, showDelivery: boolean): string {
+  const dateStr = safeFormatDate(inv.createdAt ?? inv.date, "dd MMM yyyy HH:mm");
+  const lines: string[] = [
+    "🧾 វិក័យបត្រ",
+    "",
+    `Invoice  : ${inv.invoiceNo}`,
+    `Customer : ${inv.customerName}`,
+    `Date     : ${dateStr}`,
+  ];
+  if (showDelivery && inv.deliveryNo) lines.push(`Delivery : ${inv.deliveryNo}`);
+  if (inv.note) lines.push(`Note     : ${inv.note}`);
+  lines.push("", "─────────────────────");
+
+  inv.items.forEach((item, i) => {
+    const subtotal = Number(item.subtotal).toFixed(2);
+    const price    = Number(item.price).toFixed(2);
+    lines.push(`${i + 1}. ${item.productName}`);
+    lines.push(`   ${item.qty} × $${price} = $${subtotal}`);
+  });
+
+  lines.push("─────────────────────");
+  lines.push(`Total : $${Number(inv.total).toFixed(2)}`);
+
+  return lines.join("\n");
+}
+
 function buildText(inv: FullInvoice, showDelivery: boolean): string {
   const line = "─".repeat(60);
   const thin  = "─".repeat(60);
@@ -276,7 +302,7 @@ export default function Sales() {
     }
     try {
       const inv = await fetch(`/api/invoices/${id}`).then(r => r.json()) as FullInvoice;
-      const text = buildText(inv, showDelivery);
+      const text = buildTelegramText(inv, showDelivery);
       const res  = await fetch(
         `https://api.telegram.org/bot${token}/sendMessage`,
         {
