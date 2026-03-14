@@ -5,7 +5,8 @@ import { categoriesTable } from "./categories";
 
 export const productsTable = pgTable("products", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  name:  text("name").notNull(),
+  name2: text("name2"),
   categoryId: integer("category_id").references(() => categoriesTable.id, { onDelete: "set null" }),
   basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull().default("0"),
   trackStock: boolean("track_stock").notNull().default(false),

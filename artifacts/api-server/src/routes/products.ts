@@ -18,6 +18,7 @@ router.get("/", async (req, res) => {
     .select({
       id: productsTable.id,
       name: productsTable.name,
+      name2: productsTable.name2,
       categoryId: productsTable.categoryId,
       categoryName: categoriesTable.name,
       basePrice: productsTable.basePrice,
@@ -43,6 +44,7 @@ router.get("/:id", async (req, res) => {
     .select({
       id: productsTable.id,
       name: productsTable.name,
+      name2: productsTable.name2,
       categoryId: productsTable.categoryId,
       categoryName: categoriesTable.name,
       basePrice: productsTable.basePrice,
@@ -59,11 +61,12 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { name, categoryId, basePrice, trackStock, stockQty, createdDate, image } = req.body;
+  const { name, name2, categoryId, basePrice, trackStock, stockQty, createdDate, image } = req.body;
   if (!name) return res.status(400).json({ error: "name required" });
   const today = createdDate || new Date().toISOString().split("T")[0];
   const [p] = await db.insert(productsTable).values({
     name,
+    name2: name2 || null,
     categoryId: categoryId || null,
     basePrice: String(basePrice || 0),
     trackStock: !!trackStock,
@@ -77,6 +80,7 @@ router.post("/", async (req, res) => {
     .select({
       id: productsTable.id,
       name: productsTable.name,
+      name2: productsTable.name2,
       categoryId: productsTable.categoryId,
       categoryName: categoriesTable.name,
       basePrice: productsTable.basePrice,
@@ -94,9 +98,10 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
-  const { name, categoryId, basePrice, trackStock, stockQty, createdDate, image } = req.body;
+  const { name, name2, categoryId, basePrice, trackStock, stockQty, createdDate, image } = req.body;
   await db.update(productsTable).set({
     name,
+    name2: name2 || null,
     categoryId: categoryId || null,
     basePrice: String(basePrice || 0),
     trackStock: !!trackStock,
@@ -110,6 +115,7 @@ router.put("/:id", async (req, res) => {
     .select({
       id: productsTable.id,
       name: productsTable.name,
+      name2: productsTable.name2,
       categoryId: productsTable.categoryId,
       categoryName: categoriesTable.name,
       basePrice: productsTable.basePrice,

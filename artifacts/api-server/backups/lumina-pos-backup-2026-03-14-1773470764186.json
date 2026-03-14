@@ -1,6 +1,6 @@
 {
   "version": "2",
-  "exportedAt": "2026-03-14T03:09:53.484Z",
+  "exportedAt": "2026-03-14T06:46:04.186Z",
   "categories": [
     {
       "id": 1,
@@ -17,6 +17,7 @@
     {
       "id": 1,
       "name": "រទេះពិការធម្មតា X9",
+      "name2": null,
       "categoryId": 1,
       "basePrice": "55.00",
       "trackStock": false,
@@ -30,6 +31,7 @@
     {
       "id": 2,
       "name": "Test Beer",
+      "name2": null,
       "categoryId": null,
       "basePrice": "5.00",
       "trackStock": false,
@@ -43,6 +45,7 @@
     {
       "id": 3,
       "name": "Kkk",
+      "name2": null,
       "categoryId": 1,
       "basePrice": "5.00",
       "trackStock": false,
@@ -158,6 +161,20 @@
       "deletedBy": "Admin"
     },
     {
+      "id": 40,
+      "invoiceNo": "INV-006",
+      "customerName": "Test",
+      "date": "2026-03-12",
+      "total": "55.00",
+      "deliveryId": null,
+      "note": null,
+      "status": "Completed",
+      "packingGroups": null,
+      "createdAt": "2026-03-13T09:23:32.964Z",
+      "deletedAt": "2026-03-14T02:49:03.520Z",
+      "deletedBy": "Admin"
+    },
+    {
       "id": 42,
       "invoiceNo": "INV-008",
       "customerName": "លីហេង",
@@ -172,18 +189,18 @@
       "deletedBy": null
     },
     {
-      "id": 40,
-      "invoiceNo": "INV-006",
-      "customerName": "Test",
-      "date": "2026-03-12",
+      "id": 43,
+      "invoiceNo": "INV-009",
+      "customerName": "លីហេង",
+      "date": "2026-03-14",
       "total": "55.00",
       "deliveryId": null,
       "note": null,
       "status": "Completed",
       "packingGroups": null,
-      "createdAt": "2026-03-13T09:23:32.964Z",
-      "deletedAt": "2026-03-14T02:49:03.520Z",
-      "deletedBy": "Admin"
+      "createdAt": "2026-03-14T04:45:12.053Z",
+      "deletedAt": null,
+      "deletedBy": null
     }
   ],
   "invoiceItems": [
@@ -285,6 +302,15 @@
       "price": "5.00",
       "subtotal": "5.00",
       "createdAt": "2026-03-13T17:49:16.260Z"
+    },
+    {
+      "id": 62,
+      "invoiceId": 43,
+      "productId": 1,
+      "qty": "1.00",
+      "price": "55.00",
+      "subtotal": "55.00",
+      "createdAt": "2026-03-14T04:45:12.053Z"
     }
   ],
   "deliveries": [
@@ -971,6 +997,16 @@
       "description": "Deleted invoice INV-006 (Test)",
       "date": "2026-03-14",
       "createdAt": "2026-03-14T02:49:03.528Z"
+    },
+    {
+      "id": 93,
+      "user": "Admin",
+      "action": "CREATE",
+      "entity": "invoice",
+      "entityId": 43,
+      "description": "Created invoice INV-009 for លីហេង",
+      "date": "2026-03-14",
+      "createdAt": "2026-03-14T04:45:12.096Z"
     }
   ]
 }

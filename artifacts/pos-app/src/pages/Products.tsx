@@ -72,6 +72,7 @@ export default function Products() {
   const [editingId, setEditingId]     = useState<number | null>(null);
 
   const [name,       setName]       = useState("");
+  const [name2,      setName2]      = useState("");
   const [catId,      setCatId]      = useState<string>("none");
   const [basePrice,  setBasePrice]  = useState("");
   const [trackStock, setTrackStock] = useState(true);
@@ -91,6 +92,7 @@ export default function Products() {
     if (p) {
       setEditingId(p.id);
       setName(p.name);
+      setName2((p as any).name2 ?? "");
       setCatId(p.categoryId ? p.categoryId.toString() : "none");
       setBasePrice(p.basePrice.toString());
       setTrackStock(p.trackStock);
@@ -99,6 +101,7 @@ export default function Products() {
     } else {
       setEditingId(null);
       setName("");
+      setName2("");
       setCatId("none");
       setBasePrice("");
       setTrackStock(true);
@@ -129,6 +132,7 @@ export default function Products() {
     if (!name.trim() || !basePrice) return;
     const payload = {
       name,
+      name2: name2.trim() || null,
       categoryId: catId === "none" ? null : Number(catId),
       basePrice: Number(basePrice),
       trackStock,
@@ -298,8 +302,13 @@ export default function Products() {
                             : <div className="w-10 h-10 rounded-lg bg-muted/60 border border-border flex items-center justify-center shrink-0 text-muted-foreground text-xs">IMG</div>
                           }
                           <div>
-                            <span>{p.name}</span>
-                            {isLowStock && <AlertCircle className="inline w-4 h-4 text-red-500 ml-1" />}
+                            <div className="flex items-center gap-1">
+                              <span>{p.name}</span>
+                              {isLowStock && <AlertCircle className="inline w-4 h-4 text-red-500" />}
+                            </div>
+                            {(p as any).name2 && (
+                              <div className="text-xs text-muted-foreground mt-0.5">{(p as any).name2}</div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -393,6 +402,11 @@ export default function Products() {
             <div className="grid gap-2">
               <Label htmlFor="name" className="text-muted-foreground">Product Name *</Label>
               <Input id="name" value={name} onChange={e => setName(e.target.value)} className="h-11 rounded-xl" autoFocus />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="name2" className="text-muted-foreground">Secondary Name / Alt Language</Label>
+              <Input id="name2" value={name2} onChange={e => setName2(e.target.value)} className="h-11 rounded-xl" placeholder="Optional alternate language name" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
