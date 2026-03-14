@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import {
   useListCustomers,
   useCreateCustomer,
@@ -15,9 +17,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DateShortcuts } from "@/components/ui/date-shortcuts";
 import {
-  Search, UserCircle, Calendar, Package, Plus, Pencil, Trash2, Phone, FileText, Users, History,
+  Search, UserCircle, Calendar, Package, Plus, Pencil, Trash2, Phone, FileText, Users, History, ImageDown,
 } from "lucide-react";
 import { format } from "date-fns";
+import html2canvas from "html2canvas";
+import { CustomerReceiptPreview, type ReceiptInvoice } from "@/components/CustomerReceiptPreview";
+import { useToast } from "@/hooks/use-toast";
 
 type Tab = "list" | "history";
 
@@ -27,6 +32,7 @@ const emptyForm: CustomerForm = { name: "", phone: "", note: "" };
 
 export default function Customers() {
   const [tab, setTab] = useState<Tab>("list");
+  const { toast } = useToast();
   const qc = useQueryClient();
 
   // ── Customer List ──────────────────────────────────────────────────────────
@@ -79,6 +85,43 @@ export default function Customers() {
     invalidate();
     setDeleteId(null);
   }
+
+  // ── Export Customer Receipt Image ──────────────────────────────────────────
+  const handleExportReceipt = async (customer: string, invoices: ReceiptInvoice[]) => {
+    const container = document.createElement("div");
+    container.style.cssText = "position:fixed;left:-9999px;top:-9999px;pointer-events:none;z-index:-1;";
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    flushSync(() => {
+      root.render(
+        <CustomerReceiptPreview
+          customerName={customer}
+          dateFrom={dateFrom || undefined}
+          dateTo={dateTo || undefined}
+          invoices={invoices}
+        />
+      );
+    });
+    await document.fonts.ready;
+    try {
+      const el = container.firstElementChild as HTMLElement;
+      const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: "#ffffff" });
+      const blob = await new Promise<Blob>((res, rej) =>
+        canvas.toBlob(b => b ? res(b) : rej(new Error("toBlob")), "image/png")
+      );
+      const filename = `receipt-${customer.replace(/\s+/g, "-")}.png`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast({ title: `Exported ${filename}` });
+    } catch {
+      toast({ title: "Failed to export receipt", variant: "destructive" });
+    } finally {
+      root.unmount();
+      document.body.removeChild(container);
+    }
+  };
 
   // ── Purchase History ───────────────────────────────────────────────────────
   const [customerSearch, setCustomerSearch] = useState("");
@@ -315,9 +358,19 @@ export default function Customers() {
                         </div>
                         <h3 className="font-bold text-lg text-foreground">{customer}</h3>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Value</p>
-                        <p className="font-display font-bold text-xl text-primary">${customerTotal.toFixed(2)}</p>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 gap-1.5 text-xs rounded-lg"
+                          onClick={() => handleExportReceipt(customer, invoices as ReceiptInvoice[])}
+                        >
+                          <ImageDown className="w-3.5 h-3.5" /> Export Receipt
+                        </Button>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Value</p>
+                          <p className="font-display font-bold text-xl text-primary">${customerTotal.toFixed(2)}</p>
+                        </div>
                       </div>
                     </div>
                     <div className="divide-y divide-border">
