@@ -167,11 +167,14 @@ export const CustomerReceiptPreview = forwardRef<HTMLDivElement, Props>(
             justifyContent: "flex-end",
           }}
         >
-          <div style={{ width: 180, textAlign: "right" }}>
-            <div style={{ borderTop: "1px solid #555", marginBottom: 6 }} />
-            <span style={{ fontSize: 16, fontWeight: 700 }}>
+          <div style={{ width: 220, textAlign: "right" }}>
+            <div style={{ borderTop: "1px solid #555", marginBottom: 8 }} />
+            <div style={{ fontSize: 14, marginBottom: 5, color: "#333" }}>
+              Total Bills : <strong>{invoices.length}</strong>
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>
               Total All . {fmt$(grandTotal)}
-            </span>
+            </div>
           </div>
         </div>
       </div>
